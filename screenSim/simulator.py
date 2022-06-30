@@ -6,7 +6,7 @@ class Simulator:
     def __init__(
         self, 
         num_genes = 200000, 
-        avg_num_sgrnas = 5, 
+        avg_num_sgRNAs = 5, 
         num_treatment = 2, 
         num_control = 2, 
         min_total = 1000,
@@ -17,7 +17,7 @@ class Simulator:
         fraction_NTC = 0.1):
         
         self.num_genes = num_genes
-        self.avg_num_sgrnas = avg_num_sgrnas
+        self.avg_num_sgRNAs = avg_num_sgRNAs
         self.num_treatment = num_treatment
         self.num_control = num_control
         self.min_total = min_total
@@ -35,9 +35,16 @@ class Simulator:
             raise Exception("Fractions total cannot exceed 1.")
         
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control) 
+    
+    def gene(self):
+        return ["gene_" + str(i) for i in np.arange(self.num_genes)]
+    
+    
+    def num_sgRNAs(self):
+        sgRNAs = np.random.normal(loc=5, scale=1, size=self.num_genes)
+        sgRNAs = np.round(sgRNAs)
+        return sgRNAs 
         
-        
-    # This method creates an array filled with random ints with a specified sum
     def sum_array(self, index):
         a = np.random.random(self.num_genes)
         a /= a.sum()
@@ -61,9 +68,6 @@ class Simulator:
         
         return control
         
-    def gene(self):
-        return ["gene_" + str(i) for i in np.arange(self.num_genes)]
-    
     def type_of_change(self):        
         type_of_change = ["enriched"] * round(self.num_genes * self.fraction_enriched)
         type_of_change += ["depleted"] * round(self.num_genes * self.fraction_depleted)
@@ -75,10 +79,11 @@ class Simulator:
     def sample(self):
         
         gene = pd.DataFrame({"gene": self.gene()})
+        sgRNAs = pd.DataFrame({"sgRNAs": self.num_sgRNAs()})
         treatment = pd.DataFrame(self.setting_treatment_libraries()).T
         control = pd.DataFrame(self.setting_control_libraries()).T
         type_of_change = pd.DataFrame({"type": self.type_of_change()})
         
-        result = pd.concat([gene, treatment, control, type_of_change], axis=1, join="inner")
+        result = pd.concat([gene, sgRNAs, treatment, control, type_of_change], axis=1, join="inner")
 
         return result 
