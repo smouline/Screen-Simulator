@@ -36,39 +36,39 @@ class Simulator:
         
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control) 
     
-    def gene(self):
+    def _gene(self):
         return ["gene_" + str(i) for i in np.arange(self.num_genes)]
     
     
-    def num_sgRNAs(self):
+    def _num_sgRNAs(self):
         sgRNAs = np.random.normal(loc=5, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         return sgRNAs 
         
-    def sum_array(self, index):
+    def _sum_array(self, index):
         a = np.random.random(self.num_genes)
         a /= a.sum()
         a *= self.totals_array[index]
         a = np.round(a)
         return a
     
-    def setting_treatment_libraries(self):
+    def _setting_treatment_libraries(self):
         treatment = [] 
         
         for i in np.arange(self.num_treatment):
-            treatment.append(self.sum_array(i))
+            treatment.append(self._sum_array(i))
         
         return treatment
     
-    def setting_control_libraries(self):
+    def _setting_control_libraries(self):
         control = [] 
         
         for i in np.arange(self.num_control):
-            control.append(self.sum_array(-i))
+            control.append(self._sum_array(-i))
         
         return control
         
-    def type_of_change(self):        
+    def _type_of_change(self):        
         type_of_change = ["enriched"] * round(self.num_genes * self.fraction_enriched)
         type_of_change += ["depleted"] * round(self.num_genes * self.fraction_depleted)
         type_of_change += ["NTC"] * round(self.num_genes * self.fraction_NTC)
@@ -77,11 +77,12 @@ class Simulator:
     
     
     def sample(self):
-        gene = pd.DataFrame({"gene": self.gene()})
-        sgRNAs = pd.DataFrame({"sgRNAs": self.num_sgRNAs()})
-        treatment = pd.DataFrame(self.setting_treatment_libraries()).T
-        control = pd.DataFrame(self.setting_control_libraries()).T
-        type_of_change = pd.DataFrame({"type": self.type_of_change()})
+        
+        gene = pd.DataFrame({"gene": self._gene()})
+        sgRNAs = pd.DataFrame({"sgRNAs": self._num_sgRNAs()})
+        treatment = pd.DataFrame(self._setting_treatment_libraries()).T
+        control = pd.DataFrame(self._setting_control_libraries()).T
+        type_of_change = pd.DataFrame({"type": self._type_of_change()})
         
         result = pd.concat([gene, sgRNAs, treatment, control, type_of_change], axis=1, join="inner")
 
