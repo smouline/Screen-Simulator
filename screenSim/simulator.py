@@ -77,7 +77,6 @@ class Simulator:
     
     
     def sample(self):
-        
         gene = pd.DataFrame({"gene": self.gene()})
         sgRNAs = pd.DataFrame({"sgRNAs": self.num_sgRNAs()})
         treatment = pd.DataFrame(self.setting_treatment_libraries()).T
