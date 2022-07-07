@@ -79,6 +79,10 @@ class Simulator:
         
         self.lam = [np.random.uniform(self.bounds[0], self.bounds[1]) for gene in self.sgRNAs for num in np.arange(gene)]
         
+        #make option of whether nbinomial or poisson, trucated normal 
+    
+    def _sgRNAs(self):
+        return ["sgRNA_" + str(int(i)) for i in np.arange(self.sgRNAs.sum())]
     
     def _gene(self):
         """
@@ -267,7 +271,7 @@ class Simulator:
         """
         
         # reorganize this to make code clearer
-        
+        sgRNA = pd.DataFrame({"sgRNAs": self._sgRNAs()})
         gene = pd.DataFrame({"gene": self._gene()})
         lam = pd.DataFrame({"lambda": self.lam})
         S_lam = pd.DataFrame({"modified lambda": self._S_l()})
@@ -275,6 +279,6 @@ class Simulator:
         treatment = pd.DataFrame(self._setting_treatment_libraries()).T
         type_of_change = pd.DataFrame({"type": self._type_of_change()})
         
-        result = pd.concat([gene, lam, S_lam, control, treatment, type_of_change], axis=1, join="inner")
+        result = pd.concat([sgRNA, gene, lam, S_lam, control, treatment, type_of_change], axis=1, join="inner")
 
         return result 
