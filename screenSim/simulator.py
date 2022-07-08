@@ -253,7 +253,7 @@ class Simulator:
         
         return type_of_change 
     
-    def sample(self):
+    def sample(self, seed = 10):
         """
         Generates DataFrame with observations for the simulation. 
         
@@ -267,6 +267,13 @@ class Simulator:
         """
         
         # reorganize this to make code clearer
+        
+        np.random.seed(seed)
+        # currently, every instance is initialized with lambda, sgRNA numbers, count totals, so 
+        # they are the same regardless of sample(). 
+        # the seed only keeps the setting libraries the same each time sample is called on the same object
+        # should that change so there is a seed for everything? 
+    
         sgRNA = pd.DataFrame({"sgRNAs": self._sgRNAs()})
         gene = pd.DataFrame({"gene": self._gene()})
         lam = pd.DataFrame({"lambda": self.lam})
