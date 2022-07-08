@@ -5,17 +5,17 @@ import matplotlib.pyplot as plt
 class Simulator:
     def __init__(
         self, 
-        num_genes = 20000, 
-        avg_num_sgRNAs = 5,  
-        num_control = 2, 
-        num_treatment = 2,
-        min_total = 1000,
-        max_total = 100000,
-        total_NTCs = 1000,
-        fraction_enriched = 0.2,
-        fraction_depleted = 0.2,
-        fraction_NTC = 0.2,
-        type_dist = 2):
+        num_genes: int = 20000, 
+        avg_num_sgRNAs: int = 5,  
+        num_control: int = 2, 
+        num_treatment: int = 2,
+        min_total: int = 1000,
+        max_total: int = 100000,
+        total_NTCs: int = 1000,
+        fraction_enriched: float = 0.2,
+        fraction_depleted: float = 0.2,
+        fraction_NTC: float = 0.2,
+        type_dist: int = 2):
         
         """
         Constructor for initializing Simulator object.
@@ -44,11 +44,6 @@ class Simulator:
             The fraction of NTC genes with respect to all genes.
         type_dist : int
             1 is poisson distrubution and 2 is negative binomial distrubution. 
-            
-        Raises
-        ------
-        Exception
-            If the total of fractions (enriched, depleted, NTC) exceeds 1. 
         
         """
         self.num_genes = num_genes
@@ -68,13 +63,26 @@ class Simulator:
         self._init_lambda()
         self._init_p()
         self._init_S()
-        
-
-        
+     
+    
     def _init_count_totals(self):
-        self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
+        """
+        Initializes the totals of the sgRNA counts for each library. 
         
-    def _init_fractions(self, e, d, ntc):
+        """
+        self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
+     
+    
+    def _init_fractions(self, e: float, d: float, ntc: float):
+        """
+        Initializes the enriched, depleted, NTC, and normal fractions.
+        
+        Raises
+        ------
+        Exception
+            If the total of the fractions (enriched, depleted, NTC) exceeds 1. 
+        
+        """
         total = e + d + ntc
         
         if ((total > 0.0) & (total <= 1.0)):
@@ -84,6 +92,7 @@ class Simulator:
             self.fraction_normal = 1.0 - (e + d + ntc)
         else:
             raise Exception("Fractions total cannot exceed 1.") 
+    
     
     def _init_num_sgRNAs(self):
         """
@@ -99,8 +108,13 @@ class Simulator:
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         self.sgRNAs = sgRNAs 
-        
+    
+    
     def _split_genes(self):
+        """
+        Splits genes into enriched, depleted, ntc, or normal based on the fractions.
+        
+        """
         num_e = round(len(self.sgRNAs) * self.fraction_enriched)
         num_d = round(len(self.sgRNAs) * self.fraction_depleted)
         num_ntc = round(len(self.sgRNAs) * self.fraction_NTC)
@@ -110,14 +124,29 @@ class Simulator:
         self.g_d = self.sgRNAs[num_e: num_e + num_d]
         self.g_ntc = self.sgRNAs[num_e + num_d: num_e + num_d + num_ntc]
         self.g_n = self.sgRNAs[num_e + num_d + num_ntc: num_e + num_d + num_ntc + num_n]
-        
+    
+    
     def _init_lambda(self):
+        """
+        Initializes a lambda for each sgRNA.
+        
+        """
         self.lam = np.random.uniform(self.bounds[0], self.bounds[1], size = int(self.sgRNAs.sum()))
 
+        
     def _init_p(self):
+        """
+        Initializes a p (probability for negative binomial) for each sgRNA.
+        
+        """
         self.p = np.random.random(size = int(self.sgRNAs.sum()))
     
+    
     def _init_S(self):
+        """
+        Initializes gene-specific scalars for each gene. 
+        
+        """
         S = []
 
         for i in self.g_e:
@@ -140,10 +169,22 @@ class Simulator:
             
         self.S = S 
     
-    def _sgRNAs(self):
+    
+    def _sgRNAs(self) -> list:
+        """
+        Generates list of numbered sgRNAs for use in sample() DataFrame.
+        
+        Returns
+        ------
+        list 
+            The elements of the list are in numerical order up to the 
+            total number of sgRNAs.  
+        
+        """
         return ["sgRNA_" + str(int(i)) for i in np.arange(self.sgRNAs.sum())]
     
-    def _gene(self):
+    
+    def _gene(self) -> list:
         """
         Generates list of numbered genes for use in sample() DataFrame. 
         
@@ -156,21 +197,29 @@ class Simulator:
         """
         return ["gene_" + str(i) for i in np.arange(len(self.sgRNAs)) for n in np.arange(self.sgRNAs[i])]
     
-        
-    def _sum_array(self, index, lambdas, p_array):
+    
+    def _sum_array(self, index: int, lambdas: np.ndarray, p_array: np.ndarray) -> np.ndarray:
         """
         Creates an array of random integers with a specified sum.
         
         Parameters
         ----------
         index : int
-            The index to specify which total to use from `totals_array` 
-            defined in the constructor. 
+            The index to specify which total to use from `totals_array`.
+        lambdas: np.ndarray
+            To use as lam in poisson or n in negative binomial.
+        p_array: np.ndarray 
+            Probabilities to use as p in negative binomial.
+            
+        Raises
+        ------
+        Exception
+            If the integer provided for type_dist is not associated with a distrubution. 
             
         Returns
         -------
         a : array
-            array of randomly generated integers with sum of element from `totals_array`    
+            Randomly generated integers with sum of element from `totals_array`    
         
         """
         
@@ -179,7 +228,7 @@ class Simulator:
         elif self.type_dist == 2:
             a = [np.random.negative_binomial(i, p, size=1) for i in lambdas for p in p_array]
         else:
-            raise Exception("Make sure to choose a type from the available ints")
+            raise Exception("Make sure to choose a distrubtion type from the available ints")
         
         a = np.concatenate(a)
         a = a.astype(float)
@@ -189,15 +238,15 @@ class Simulator:
         
         return a
     
-    def _setting_treatment_libraries(self):
+    
+    def _setting_treatment_libraries(self) -> list:
         """
         Generates values for treatment libraries.
         
         Returns
         -------
         treatment : list
-            `treatment` is a list of arrays, one for each library, 
-            generated by the _sum_array() method. 
+            List of arrays, one for each library, generated by the _sum_array() method. 
             
         """
         treatment = [] 
@@ -207,15 +256,15 @@ class Simulator:
         
         return treatment
     
-    def _setting_control_libraries(self):
+    
+    def _setting_control_libraries(self) -> list:
         """
         Generates values for control libraries.
         
         Returns
         -------
         control : list
-            `control` is a list of arrays, one for each library, 
-            generated by the _sum_array() method. 
+            List of arrays, one for each library, generated by the _sum_array() method. 
             
         """
         control = [] 
@@ -225,19 +274,29 @@ class Simulator:
         
         return control
     
-    def _S_l(self):
-        return np.multiply(self.S, self.lam)
-             
-    def _type_of_change(self):
+    
+    def _S_l(self) -> np.ndarray:
         """
-        Sets number of enriched, depleted, NTC, and normal genes. 
+        Scales the lambdas for treatment libraries. 
+        
+        Returns
+        -------
+        np.ndarray 
+            Element-wise product of `S` and `lam`.  
+            
+        """
+        return np.multiply(self.S, self.lam)
+     
+        
+    def _type_of_change(self) -> list:
+        """
+        Labels genes as enriched, depleted, NTC, or normal.
         
         Returns
         -------
         type_of_change : list
-            The list is filled with strings of enriched, depleted, NTC, 
-            and normal for a gene. The number of times a type is in the 
-            list is based on the fractional representation specified upon 
+            Strings of enriched, depleted, NTC, and normal for each gene, 
+            based on the fractional representation specified upon 
             initialization.
             
         """
@@ -253,9 +312,16 @@ class Simulator:
         
         return type_of_change 
     
-    def sample(self, seed = 10):
+    
+    def sample(self, seed: int = 10) -> pd.DataFrame:
         """
         Generates DataFrame with observations for the simulation. 
+        
+        Parameters
+        ----------
+        seed: int
+            Observations are repeatable each time sample() is called on 
+            the same instance with the same `seed`. 
         
         Returns
         -------
@@ -269,19 +335,15 @@ class Simulator:
         # reorganize this to make code clearer
         
         np.random.seed(seed)
-        # currently, every instance is initialized with lambda, sgRNA numbers, count totals, so 
-        # they are the same regardless of sample(). 
-        # the seed only keeps the setting libraries the same each time sample is called on the same object
-        # should that change so there is a seed for everything? 
     
         sgRNA = pd.DataFrame({"sgRNAs": self._sgRNAs()})
         gene = pd.DataFrame({"gene": self._gene()})
         lam = pd.DataFrame({"lambda": self.lam})
-        S_lam = pd.DataFrame({"modified lambda": self._S_l()})
+        S_lam = pd.DataFrame({"scaled lambda": self._S_l()})
         control = pd.DataFrame(self._setting_control_libraries()).T
         treatment = pd.DataFrame(self._setting_treatment_libraries()).T
         type_of_change = pd.DataFrame({"type": self._type_of_change()})
         
         result = pd.concat([sgRNA, gene, lam, S_lam, control, treatment, type_of_change], axis=1, join="inner")
-
+        
         return result 
