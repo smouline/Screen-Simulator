@@ -64,7 +64,7 @@ class Simulator:
         self.g_d = self.sgRNAs[num_e: num_e + num_d]
         self.g_ntc = self.sgRNAs[num_e + num_d: num_e + num_d + num_ntc]
         self.g_n = self.sgRNAs[num_e + num_d + num_ntc: num_e + num_d + num_ntc + num_n]
-
+        
     def _init_lambda(self):
         self.lam = np.random.uniform(self.bounds[0], self.bounds[1], size = int(self.sgRNAs.sum()))
 
@@ -129,7 +129,6 @@ class Simulator:
         return treatment
 
     def _setting_control_libraries(self) -> list:
-        
         control = [] 
 
         for i in np.arange(self.num_control):
