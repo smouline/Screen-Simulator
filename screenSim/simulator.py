@@ -25,9 +25,6 @@ class Simulator:
         type_dist : int
             1 is poisson distrubution and 2 is negative binomial distrubution. 
             
-        Raises
-        ------
-    @@ -50,40 +53,39 @@ def __init__(
         """
         self.num_genes = num_genes
         self.avg_num_sgRNAs = avg_num_sgRNAs
@@ -62,13 +59,9 @@ class Simulator:
             self.fraction_normal = 1.0 - (e + d + ntc)
         else:
             raise Exception("Fractions total cannot exceed 1.") 
-
-    def _init_num_sgRNAs(self):
-        """
-        Generates a number of sgRNAs per gene. 
         
-    @@ -96,9 +98,66 @@ def _num_sgRNAs(self):
-        """
+        
+    def _init_num_sgRNAs(self):
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         self.sgRNAs = sgRNAs 
@@ -111,31 +104,18 @@ class Simulator:
             for n in np.arange(i):
                 S.append(1)
 
-        self.S = S 
+        self.S = S
 
     def _sgRNAs(self):
         return ["sgRNA_" + str(int(i)) for i in np.arange(self.sgRNAs.sum())]
 
     def _gene(self):
-        """
-        Generates list of numbered genes for use in sample() DataFrame. 
         
-        Returns
-        -------
-        list
-            The elements of the list are in numerical order up to the 
-            number of genes in `num_genes`.
-        
-        """
         return ["gene_" + str(i) for i in np.arange(len(self.sgRNAs)) for n in np.arange(self.sgRNAs[i])]
-
 
     def _sum_array(self, index, lambdas, p_array):
         """
-        Creates an array of random integers with a specified sum.
-        
-    @@ -114,10 +173,20 @@ def _sum_array(self, index):
-            array of randomly generated integers with sum of element from `totals_array`    
+       
         
         """
 
@@ -156,7 +136,7 @@ class Simulator:
 
     def _setting_treatment_libraries(self):
         treatment = [] 
-
+       
         for i in np.arange(self.num_treatment):
             treatment.append(self._sum_array(i, self._S_l(), self.p))
 
@@ -175,9 +155,7 @@ class Simulator:
 
     def _type_of_change(self):
         """
-        Sets number of enriched, depleted, NTC, and normal genes. 
-    @@ -169,13 +241,18 @@ def _type_of_change(self):
-            initialization.
+       
             
         """
 
@@ -188,15 +166,8 @@ class Simulator:
         ntc = ["ntc" for i in np.arange(len(self.g_ntc)) for n in np.arange(self.g_ntc[i])]
         n = ["normal" for i in np.arange(len(self.g_n)) for n in np.arange(self.g_n[i])]
 
-        type_of_change = e + d + ntc + n
-
-        return type_of_change 
-
     def sample(self):
         """
-        Generates DataFrame with observations for the simulation. 
-    @@ -188,12 +265,16 @@ def sample(self):
-            _setting_control_libraries(), _type_of_change() methods.  
             
         """
 
