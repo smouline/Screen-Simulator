@@ -5,16 +5,17 @@ import matplotlib.pyplot as plt
 class Simulator:
     def __init__(
         self, 
-        num_genes = 20000, 
-        avg_num_sgRNAs = 5, 
-        num_treatment = 2, 
-        num_control = 2, 
-        min_total = 1000,
-        max_total = 100000,
-        total_NTCs = 1000,
-        fraction_enriched = 0.2,
-        fraction_depleted = 0.2,
-        fraction_NTC = 0.2):
+        num_genes: int = 20000, 
+        avg_num_sgRNAs: int = 5,  
+        num_control: int = 2, 
+        num_treatment: int = 2,
+        min_total: int = 1000,
+        max_total: int = 100000,
+        total_NTCs: int = 1000,
+        fraction_enriched: float = 0.2,
+        fraction_depleted: float = 0.2,
+        fraction_NTC: float = 0.2,
+        type_dist: int = 2):
         
         """
         Constructor for initializing Simulator object.
@@ -40,61 +41,57 @@ class Simulator:
         fraction_depleted : float
             The fraction of depleted genes with respect to all genes. 
         fraction_NTC : float
-            The fraction of NTC genes with respect to all genes. 
-            
-        Raises
-        ------
-        Exception
-            If the total of fractions (enriched, depleted, NTC) exceeds 1. 
+            The fraction of NTC genes with respect to all genes.
+        type_dist : int
+            1 is poisson distrubution and 2 is negative binomial distrubution. 
         
         """
         self.num_genes = num_genes
         self.avg_num_sgRNAs = avg_num_sgRNAs
-        self.num_treatment = num_treatment
         self.num_control = num_control
+        self.num_treatment = num_treatment
         self.min_total = min_total
         self.max_total = max_total
         self.total_NTCs = total_NTCs
-        
-        total_fractions = fraction_enriched + fraction_depleted + fraction_NTC
-        
-        if ((total_fractions > 0.0) & (total_fractions <= 1.0)):
-            self.fraction_enriched = fraction_enriched
-            self.fraction_depleted = fraction_depleted
-            self.fraction_NTC = fraction_NTC
-            self.fraction_normal = 1.0 - (fraction_enriched + fraction_depleted + fraction_NTC)
-        else:
-            raise Exception("Fractions total cannot exceed 1.")
-        
-        self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
-        
+        self.type_dist = type_dist
         self.bounds = [10, 30]
         
-        self.sgRNAs = self._num_sgRNAs()
-        
-        self.num_e = round(len(self.sgRNAs) * self.fraction_enriched)
-        self.num_d = round(len(self.sgRNAs) * self.fraction_depleted)
-        self.num_ntc = round(len(self.sgRNAs) * self.fraction_NTC)
-        self.num_n = round(len(self.sgRNAs) * self.fraction_normal)
-        
-        self.lam = [np.random.uniform(self.bounds[0], self.bounds[1]) for gene in self.sgRNAs for num in np.arange(gene)]
-        
-    
-    def _gene(self):
+        self._init_count_totals()
+        self._init_fractions(fraction_enriched, fraction_depleted, fraction_NTC)
+        self._init_num_sgRNAs()
+        self._split_genes()
+        self._init_lambda()
+        self._init_p()
+        self._init_S()
+     
+    def _init_count_totals(self):
         """
-        Generates list of numbered genes for use in sample() DataFrame. 
-        
-        Returns
-        -------
-        list
-            The elements of the list are in numerical order up to the 
-            number of genes in `num_genes`.
+        Initializes the totals of the sgRNA counts for each library. 
         
         """
-        return ["gene_" + str(i) for i in np.arange(len(self.sgRNAs)) for n in np.arange(self.sgRNAs[i])]
+        self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
+     
+    def _init_fractions(self, e: float, d: float, ntc: float):
+        """
+        Initializes the enriched, depleted, NTC, and normal fractions.
+        
+        Raises
+        ------
+        Exception
+            If the total of the fractions (enriched, depleted, NTC) exceeds 1. 
+        
+        """
+        total = e + d + ntc
+        
+        if ((total > 0.0) & (total <= 1.0)):
+            self.fraction_enriched = e
+            self.fraction_depleted = d
+            self.fraction_NTC = ntc
+            self.fraction_normal = 1.0 - (e + d + ntc)
+        else:
+            raise Exception("Fractions total cannot exceed 1.") 
     
-    
-    def _num_sgRNAs(self):
+    def _init_num_sgRNAs(self):
         """
         Generates a number of sgRNAs per gene. 
         
@@ -107,27 +104,120 @@ class Simulator:
         """
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
-        return sgRNAs 
- 
+        self.sgRNAs = sgRNAs 
+    
+    def _split_genes(self):
+        """
+        Splits genes into enriched, depleted, ntc, or normal based on the fractions.
         
-    def _sum_array(self, index, lambdas):
+        """
+        num_e = round(len(self.sgRNAs) * self.fraction_enriched)
+        num_d = round(len(self.sgRNAs) * self.fraction_depleted)
+        num_ntc = round(len(self.sgRNAs) * self.fraction_NTC)
+        num_n = round(len(self.sgRNAs) * self.fraction_normal)
+        
+        self.g_e = self.sgRNAs[0: num_e]
+        self.g_d = self.sgRNAs[num_e: num_e + num_d]
+        self.g_ntc = self.sgRNAs[num_e + num_d: num_e + num_d + num_ntc]
+        self.g_n = self.sgRNAs[num_e + num_d + num_ntc: num_e + num_d + num_ntc + num_n]
+    
+    def _init_lambda(self):
+        """
+        Initializes a lambda for each sgRNA.
+        
+        """
+        self.lam = np.random.uniform(self.bounds[0], self.bounds[1], size = int(self.sgRNAs.sum()))
+
+    def _init_p(self):
+        """
+        Initializes a p (probability for negative binomial) for each sgRNA.
+        
+        """
+        self.p = np.random.random(size = int(self.sgRNAs.sum()))
+    
+    def _init_S(self):
+        """
+        Initializes gene-specific scalars for each gene. 
+        
+        """
+        S = []
+
+        for i in self.g_e:
+            g_scalar = np.random.uniform(1.2, 2.0)
+            for n in np.arange(i):
+                S.append(g_scalar)
+
+        for i in self.g_d:
+            g_scalar = np.random.uniform(0.2, 1.0)
+            for n in np.arange(i):
+                S.append(g_scalar)
+                
+        for i in self.g_ntc:
+            for n in np.arange(i):
+                S.append(1)
+                
+        for i in self.g_n:
+            for n in np.arange(i):
+                S.append(1)
+            
+        self.S = S 
+    
+    def _sgRNAs(self) -> list:
+        """
+        Generates list of numbered sgRNAs for use in sample() DataFrame.
+        
+        Returns
+        ------
+        list 
+            All sgRNAs numbered.
+        
+        """
+        return ["sgRNA_" + str(int(i)) for i in np.arange(self.sgRNAs.sum())]
+    
+    def _gene(self) -> list:
+        """
+        Generates list of numbered genes for use in sample() DataFrame. 
+        
+        Returns
+        -------
+        list
+            All genes numbered. Genes repeated for each of their sgRNAs. 
+        
+        """
+        return ["gene_" + str(i) for i in np.arange(len(self.sgRNAs)) for n in np.arange(self.sgRNAs[i])]
+    
+    def _sum_array(self, index: int, lambdas: np.ndarray, p_array: np.ndarray) -> np.ndarray:
         """
         Creates an array of random integers with a specified sum.
         
         Parameters
         ----------
         index : int
-            The index to specify which total to use from `totals_array` 
-            defined in the constructor. 
+            Index to specify which total to use from `totals_array`.
+        lambdas: np.ndarray
+            To use as lam in poisson or n in negative binomial.
+        p_array: np.ndarray 
+            Probabilities to use as p in negative binomial.
+            
+        Raises
+        ------
+        Exception
+            If the integer provided for type_dist is not associated with a distrubution. 
             
         Returns
         -------
         a : array
-            array of randomly generated integers with sum of element from `totals_array`    
+            Randomly generated integers with sum of element from `totals_array`    
         
         """
         
-        a = [np.random.poisson(i, size=1) for i in lambdas]
+        if self.type_dist == 1:
+            a = [np.random.poisson(i, size=1) for i in lambdas]
+        elif self.type_dist == 2:
+            a = [np.random.negative_binomial(i, p, size=1) for i in lambdas for p in p_array]
+        else:
+            raise Exception("Make sure to choose a distrubtion type from the available ints")
+        
         a = np.concatenate(a)
         a = a.astype(float)
         a /= (a.sum())
@@ -136,145 +226,198 @@ class Simulator:
         
         return a
     
-    def _setting_treatment_libraries(self):
-        """
-        Generates values for treatment libraries.
-        
-        Returns
-        -------
-        treatment : list
-            `treatment` is a list of arrays, one for each library, 
-            generated by the _sum_array() method. 
-            
-        """
-        treatment = [] 
-        
-        for i in np.arange(self.num_treatment):
-            treatment.append(self._sum_array(i, self._S_l()))
-        
-        return treatment
-    
-    def _setting_control_libraries(self):
+    def _setting_control_libraries(self) -> list:
         """
         Generates values for control libraries.
         
         Returns
         -------
         control : list
-            `control` is a list of arrays, one for each library, 
-            generated by the _sum_array() method. 
+            List of arrays, one for each library, generated by the _sum_array() method. 
             
         """
         control = [] 
         
         for i in np.arange(self.num_control):
-            control.append(self._sum_array(-(i+1), self.lam))
+            control.append(self._sum_array(i, self.lam, self.p))
         
-        return control
-
-
-    def _g_e(self):
-        return self.sgRNAs[0: self.num_e]      
+        return control 
     
-    def _g_d(self):
-        return self.sgRNAs[self.num_e: self.num_e + self.num_d]
-    
-    def _g_ntc(self):
-        return self.sgRNAs[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc]
-    
-    def _g_n(self):
-        return self.sgRNAs[self.num_e + self.num_d + self.num_ntc: self.num_e + self.num_d + self.num_ntc + self.num_n]
-    
-    def _S(self):
-        
-        # currently different each time called, the S_l in dataframe doens't reflect the one used for treatments,
-        # add in constructor?
-        
-        S = []
-    
-        g_e = self._g_e()
-        g_d = self._g_d()
-        g_ntc = self._g_ntc()
-        g_n = self._g_n()
-
-        for i in g_e:
-            g_scalar = np.random.uniform(1.2, 2.0)
-            for n in np.arange(i):
-                S.append(g_scalar)
-
-        for i in g_d:
-            g_scalar = np.random.uniform(0.2, 1.0)
-            for n in np.arange(i):
-                S.append(g_scalar)
-                
-        for i in g_ntc:
-            for n in np.arange(i):
-                S.append(1)
-                
-        for i in g_n:
-            for n in np.arange(i):
-                S.append(1)
-            
-        return S 
-    
-    def _S_l(self):
-        return np.multiply(self._S(), self.lam)
-        
-        
-        
-    def _type_of_change(self):
+    def _setting_treatment_libraries(self) -> list:
         """
-        Sets number of enriched, depleted, NTC, and normal genes. 
+        Generates values for treatment libraries.
+        
+        Returns
+        -------
+        treatment : list
+            List of arrays, one for each library, generated by the _sum_array() method. 
+            
+        """
+        treatment = [] 
+        
+        for i in np.arange(self.num_treatment):
+            treatment.append(self._sum_array(-(i+1), self._S_l(), self.p))
+        
+        return treatment
+    
+    def _S_l(self) -> np.ndarray:
+        """
+        Scales the lambdas for treatment libraries. 
+        
+        Returns
+        -------
+        np.ndarray 
+            Element-wise product of `S` and `lam`.  
+            
+        """
+        return np.multiply(self.S, self.lam)
+     
+    def _modification(self) -> list:
+        """
+        Labels genes as enriched, depleted, NTC, or normal.
         
         Returns
         -------
         type_of_change : list
-            The list is filled with strings of enriched, depleted, NTC, 
-            and normal for a gene. The number of times a type is in the 
-            list is based on the fractional representation specified upon 
+            Strings of enriched, depleted, NTC, and normal for each gene, 
+            based on the fractional representation specified upon 
             initialization.
             
         """
         
-        type_of_change = []
+        modification = []
         
-        g_e = self._g_e()
-        g_d = self._g_d()
-        g_ntc = self._g_ntc()
-        g_n = self._g_n()
+        e = ["enriched" for i in np.arange(len(self.g_e)) for n in np.arange(self.g_e[i])]
+        d = ["depleted" for i in np.arange(len(self.g_d)) for n in np.arange(self.g_d[i])]
+        ntc = ["ntc" for i in np.arange(len(self.g_ntc)) for n in np.arange(self.g_ntc[i])]
+        n = ["normal" for i in np.arange(len(self.g_n)) for n in np.arange(self.g_n[i])]
         
-        e = ["enriched" for i in np.arange(len(g_e)) for n in np.arange(g_e[i])]
-        d = ["depleted" for i in np.arange(len(g_d)) for n in np.arange(g_d[i])]
-        ntc = ["ntc" for i in np.arange(len(g_ntc)) for n in np.arange(g_ntc[i])]
-        n = ["normal" for i in np.arange(len(g_n)) for n in np.arange(g_n[i])]
+        modification = e + d + ntc + n
         
-        type_of_change = e + d + ntc + n
-        
-        return type_of_change 
+        return modification 
     
+    def _sgRNA_df(self) -> pd.DataFrame:
+        """
+        Puts sgRNAs into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Numbered sgRNAs with label "sgRNAs". 
+            
+        """
+        return pd.DataFrame({"sgRNAs": self._sgRNAs()})
     
-    def sample(self):
+    def _gene_df(self) -> pd.DataFrame:
+        """
+        Puts genes into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Numbered genes with label "gene". 
+            
+        """
+        return pd.DataFrame({"gene": self._gene()})
+    
+    def _lam_df(self) -> pd.DataFrame:
+        """
+        Puts lambda values a into DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Lambda values with label "lambda". 
+            
+        """
+        return pd.DataFrame({"lambda": self.lam})
+    
+    def _S_lam_df(self) -> pd.DataFrame:
+        """
+        Puts scaled lambda values into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Scaled lambda values with label "scaled lambda". 
+            
+        """
+        return pd.DataFrame({"scaled lambda": self._S_l()})
+    
+    def _controls_df(self) -> pd.DataFrame:
+        """
+        Puts control libraries into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Control libraries with numbered "control_" labels. 
+            
+        """
+        control = {}
+        for i in np.arange(self.num_control):
+            control["control_" + str(i)] = self._setting_control_libraries()[i]
+           
+        control = pd.DataFrame(control)
+        return control
+    
+    def _treatments_df(self) -> pd.DataFrame:
+        """
+        Puts treatment libraries into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Treatment libraries with numbered "treatment_" labels. 
+            
+        """
+        treatment = {}
+        for i in np.arange(self.num_treatment):
+            treatment["treatment_" + str(i)] = self._setting_treatment_libraries()[i]
+           
+        treatment = pd.DataFrame(treatment)
+        return treatment
+    
+    def _modification_df(self):
+        """
+        Puts modification assignments into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Modification assignments with label "modification". 
+            
+        """
+        return pd.DataFrame({"modification": self._modification()})
+            
+    def sample(self, seed: int = 10) -> pd.DataFrame:
         """
         Generates DataFrame with observations for the simulation. 
+        
+        Parameters
+        ----------
+        seed: int
+            Observations are repeatable each time sample() is called on 
+            the same instance with the same `seed`. 
         
         Returns
         -------
         result : DataFrame 
-            This DataFrame concatenates information from the _gene(),
-            _num_sgRNAs(), _setting_treatment_libraries(),
-            _setting_control_libraries(), _type_of_change() methods.  
+            sgRNA, gene, lam, S_lam, control, treatments, and modification DataFrames concatenated   
             
         """
         
-        # reorganize this to make code clearer
+        np.random.seed(seed)
         
-        gene = pd.DataFrame({"gene": self._gene()})
-        lam = pd.DataFrame({"lambda": self.lam})
-        S_lam = pd.DataFrame({"modified lambda": self._S_l()})
-        control = pd.DataFrame(self._setting_control_libraries()).T
-        treatment = pd.DataFrame(self._setting_treatment_libraries()).T
-        type_of_change = pd.DataFrame({"type": self._type_of_change()})
+        result = pd.concat([
+            self._sgRNA_df(), 
+            self._gene_df(), 
+            self._lam_df(), 
+            self._S_lam_df(), 
+            self._controls_df(), 
+            self._treatments_df(), 
+            self._modification_df()], 
+            axis=1, 
+            join="inner")
         
-        result = pd.concat([gene, lam, S_lam, control, treatment, type_of_change], axis=1, join="inner")
-
-        return result
+        return result 
