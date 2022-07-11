@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from screenSim.simulator import Simulator
 
 # add more later  
@@ -38,7 +39,7 @@ def test_treatment_sums():
         assert abs((treatments[i].sum() - total[-(i+1)])/total[-(i+1)]) < 0.05
         
 def test_sgRNA_average():
-    assert np.mean(trial.sgRNAs) == trial.avg_num_sgRNAs
+    assert (np.mean(trial.sgRNAs) - trial.avg_num_sgRNAs)/trial.avg_num_sgRNAs < 0.10
         
         
         
