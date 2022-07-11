@@ -90,7 +90,7 @@ class Simulator:
             self.fraction_normal = 1.0 - (e + d + ntc)
         else:
             raise Exception("Fractions total cannot exceed 1.") 
-    
+
     def _init_num_sgRNAs(self):
         """
         Generates a number of sgRNAs per gene. 
@@ -115,7 +115,7 @@ class Simulator:
         num_d = round(len(self.sgRNAs) * self.fraction_depleted)
         num_ntc = round(len(self.sgRNAs) * self.fraction_NTC)
         num_n = round(len(self.sgRNAs) * self.fraction_normal)
-        
+
         self.g_e = self.sgRNAs[0: num_e]
         self.g_d = self.sgRNAs[num_e: num_e + num_d]
         self.g_ntc = self.sgRNAs[num_e + num_d: num_e + num_d + num_ntc]
@@ -217,13 +217,13 @@ class Simulator:
             a = [np.random.negative_binomial(i, p, size=1) for i in lambdas for p in p_array]
         else:
             raise Exception("Make sure to choose a distrubtion type from the available ints")
-        
+
         a = np.concatenate(a)
         a = a.astype(float)
         a /= (a.sum())
         a *= self.totals_array[index]
         a = np.round(a)
-        
+
         return a
     
     def _setting_control_libraries(self) -> list:
@@ -254,7 +254,7 @@ class Simulator:
             
         """
         treatment = [] 
-        
+
         for i in np.arange(self.num_treatment):
             treatment.append(self._sum_array(-(i+1), self._S_l(), self.p))
         
@@ -406,7 +406,6 @@ class Simulator:
             sgRNA, gene, lam, S_lam, control, treatments, and modification DataFrames concatenated   
             
         """
-        
         np.random.seed(seed)
         
         result = pd.concat([
