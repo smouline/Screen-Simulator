@@ -16,19 +16,6 @@ class Simulator:
         fraction_NTC = 0.2,
         type_dist = 2):
 
-        """
-        Constructor for initializing Simulator object.
-        fraction_depleted : float
-            The fraction of depleted genes with respect to all genes. 
-        fraction_NTC : float
-            The fraction of NTC genes with respect to all genes.
-        type_dist : int
-            1 is poisson distrubution and 2 is negative binomial distrubution. 
-            
-        Raises
-        ------
-    @@ -50,40 +53,39 @@ def __init__(
-        """
         self.num_genes = num_genes
         self.avg_num_sgRNAs = avg_num_sgRNAs
         self.num_control = num_control
@@ -48,7 +35,6 @@ class Simulator:
         self._init_S()
 
 
-
     def _init_count_totals(self):
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
 
@@ -64,11 +50,6 @@ class Simulator:
             raise Exception("Fractions total cannot exceed 1.") 
 
     def _init_num_sgRNAs(self):
-        """
-        Generates a number of sgRNAs per gene. 
-        
-    @@ -96,9 +98,66 @@ def _num_sgRNAs(self):
-        """
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         self.sgRNAs = sgRNAs 
@@ -117,28 +98,10 @@ class Simulator:
         return ["sgRNA_" + str(int(i)) for i in np.arange(self.sgRNAs.sum())]
 
     def _gene(self):
-        """
-        Generates list of numbered genes for use in sample() DataFrame. 
-        
-        Returns
-        -------
-        list
-            The elements of the list are in numerical order up to the 
-            number of genes in `num_genes`.
-        
-        """
         return ["gene_" + str(i) for i in np.arange(len(self.sgRNAs)) for n in np.arange(self.sgRNAs[i])]
 
 
     def _sum_array(self, index, lambdas, p_array):
-        """
-        Creates an array of random integers with a specified sum.
-        
-    @@ -114,10 +173,20 @@ def _sum_array(self, index):
-            array of randomly generated integers with sum of element from `totals_array`    
-        
-        """
-
         if self.type_dist == 1:
             a = [np.random.poisson(i, size=1) for i in lambdas]
         elif self.type_dist == 2:
@@ -174,12 +137,6 @@ class Simulator:
         return np.multiply(self.S, self.lam)
 
     def _type_of_change(self):
-        """
-        Sets number of enriched, depleted, NTC, and normal genes. 
-    @@ -169,13 +241,18 @@ def _type_of_change(self):
-            initialization.
-            
-        """
 
         type_of_change = []
 
@@ -192,15 +149,16 @@ class Simulator:
 
         return type_of_change 
 
-    def sample(self):
-        """
-        Generates DataFrame with observations for the simulation. 
-    @@ -188,12 +265,16 @@ def sample(self):
-            _setting_control_libraries(), _type_of_change() methods.  
-            
-        """
+    def sample(self, seed = 10):
 
         # reorganize this to make code clearer
+
+        np.random.seed(seed)
+        # currently, every instance is initialized with lambda, sgRNA numbers, count totals, so 
+        # they are the same regardless of sample(). 
+        # the seed only keeps the setting libraries the same each time sample is called on the same object
+        # should that change so there is a seed for everything? 
+
         sgRNA = pd.DataFrame({"sgRNAs": self._sgRNAs()})
         gene = pd.DataFrame({"gene": self._gene()})
         lam = pd.DataFrame({"lambda": self.lam})
