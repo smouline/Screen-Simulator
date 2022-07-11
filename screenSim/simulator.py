@@ -12,9 +12,9 @@ class Simulator:
         min_total = 1000,
         max_total = 100000,
         total_NTCs = 1000,
-        fraction_enriched = 0.1,
-        fraction_depleted = 0.1,
-        fraction_NTC = 0.1):
+        fraction_enriched = 0.2,
+        fraction_depleted = 0.2,
+        fraction_NTC = 0.2):
         
         """
         Constructor for initializing Simulator object.
@@ -67,9 +67,18 @@ class Simulator:
             raise Exception("Fractions total cannot exceed 1.")
         
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
-        # print(self.totals_array)
         
-        self.normal_bounds = np.array([10, 30])
+        self.bounds = [10, 30]
+        
+        self.sgRNAs = self._num_sgRNAs()
+        
+        self.num_e = round(len(self.sgRNAs) * self.fraction_enriched)
+        self.num_d = round(len(self.sgRNAs) * self.fraction_depleted)
+        self.num_ntc = round(len(self.sgRNAs) * self.fraction_NTC)
+        self.num_n = round(len(self.sgRNAs) * self.fraction_normal)
+        
+        self.lam = [np.random.uniform(self.bounds[0], self.bounds[1]) for gene in self.sgRNAs for num in np.arange(gene)]
+        
     
     def _gene(self):
         """
@@ -82,7 +91,7 @@ class Simulator:
             number of genes in `num_genes`.
         
         """
-        return ["gene_" + str(i) for i in np.arange(self.num_genes)]
+        return ["gene_" + str(i) for i in np.arange(len(self.sgRNAs)) for n in np.arange(self.sgRNAs[i])]
     
     
     def _num_sgRNAs(self):
@@ -99,97 +108,9 @@ class Simulator:
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         return sgRNAs 
-    
-    def _scale_e(self):
-        """
-        Scales the no effect bounds up. 
+ 
         
-        Returns
-        -------
-        array
-            The scaling factor is a float within the range [1.2, 2.0)
-        
-        """
-        return self.normal_bounds * np.random.uniform(1.2, 2.0)
-    
-    def _scale_d(self):
-        """
-        Scales the no effect bounds down. 
-        
-        Returns
-        -------
-        array
-            The scaling factor is a float within the range [0.2, 1.0)
-        
-        """
-        return self.normal_bounds * np.random.uniform(0.2, 1.0)
-    
-    def _lamda(self, bounds):
-        """
-        Generates value for lamba for poisson distrubution. 
-        
-        Parameters
-        ----------
-        bounds : array
-            Array with 2 elements--min and max for lambda
-        
-        Returns
-        -------
-        float 
-            The lamda float is within the the first (included) and second element of `bounds`
-        
-        """
-        return np.random.uniform(bounds[0], bounds[1])
-    
-    def _e_dist(self):
-        """
-        Generates poisson distrubution for enriched genes. 
-        
-        Returns
-        -------
-        array
-            description
-        
-        """
-        return np.random.poisson(self._lamda(self._scale_e()), round(self.num_genes * self.fraction_enriched))
-    
-    def _d_dist(self):
-        """
-        Generates poisson distrubution for depleted genes. 
-        
-        Returns
-        -------
-        array
-            description
-        
-        """
-        return np.random.poisson(self._lamda(self._scale_d()), round(self.num_genes * self.fraction_depleted))
-    
-    def _ntc_dist(self):
-        """
-        Generates poisson distrubution for ntc genes. 
-        
-        Returns
-        -------
-        array
-            description
-        
-        """
-        return np.random.poisson(self._lamda(self.normal_bounds), round(self.num_genes * self.fraction_NTC))
-    
-    def _ne_dist(self):
-        """
-        Generates poisson distrubution for normal genes. 
-        
-        Returns
-        -------
-        array
-            description
-        
-        """
-        return np.random.poisson(self._lamda(self.normal_bounds), round(self.num_genes * self.fraction_normal))
-        
-    def _sum_array(self, index):
+    def _sum_array(self, index, lambdas):
         """
         Creates an array of random integers with a specified sum.
         
@@ -205,13 +126,14 @@ class Simulator:
             array of randomly generated integers with sum of element from `totals_array`    
         
         """
-        a = np.concatenate((self._e_dist(), self._d_dist(), self._ntc_dist(), self._ne_dist()))
+        
+        a = [np.random.poisson(i, size=1) for i in lambdas]
+        a = np.concatenate(a)
         a = a.astype(float)
         a /= (a.sum())
         a *= self.totals_array[index]
         a = np.round(a)
-        # print(a)
-        # print(a.sum())
+        
         return a
     
     def _setting_treatment_libraries(self):
@@ -228,7 +150,7 @@ class Simulator:
         treatment = [] 
         
         for i in np.arange(self.num_treatment):
-            treatment.append(self._sum_array(i))
+            treatment.append(self._sum_array(i, self._S_l()))
         
         return treatment
     
@@ -246,9 +168,59 @@ class Simulator:
         control = [] 
         
         for i in np.arange(self.num_control):
-            control.append(self._sum_array(-(i+1)))
+            control.append(self._sum_array(-(i+1), self.lam))
         
         return control
+
+
+    def _g_e(self):
+        return self.sgRNAs[0: self.num_e]      
+    
+    def _g_d(self):
+        return self.sgRNAs[self.num_e: self.num_e + self.num_d]
+    
+    def _g_ntc(self):
+        return self.sgRNAs[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc]
+    
+    def _g_n(self):
+        return self.sgRNAs[self.num_e + self.num_d + self.num_ntc: self.num_e + self.num_d + self.num_ntc + self.num_n]
+    
+    def _S(self):
+        
+        # currently different each time called, the S_l in dataframe doens't reflect the one used for treatments,
+        # add in constructor?
+        
+        S = []
+    
+        g_e = self._g_e()
+        g_d = self._g_d()
+        g_ntc = self._g_ntc()
+        g_n = self._g_n()
+
+        for i in g_e:
+            g_scalar = np.random.uniform(1.2, 2.0)
+            for n in np.arange(i):
+                S.append(g_scalar)
+
+        for i in g_d:
+            g_scalar = np.random.uniform(0.2, 1.0)
+            for n in np.arange(i):
+                S.append(g_scalar)
+                
+        for i in g_ntc:
+            for n in np.arange(i):
+                S.append(1)
+                
+        for i in g_n:
+            for n in np.arange(i):
+                S.append(1)
+            
+        return S 
+    
+    def _S_l(self):
+        return np.multiply(self._S(), self.lam)
+        
+        
         
     def _type_of_change(self):
         """
@@ -263,10 +235,21 @@ class Simulator:
             initialization.
             
         """
-        type_of_change = ["enriched"] * round(self.num_genes * self.fraction_enriched)
-        type_of_change += ["depleted"] * round(self.num_genes * self.fraction_depleted)
-        type_of_change += ["NTC"] * round(self.num_genes * self.fraction_NTC)
-        type_of_change += ["normal"] * round(self.num_genes * self.fraction_normal)
+        
+        type_of_change = []
+        
+        g_e = self._g_e()
+        g_d = self._g_d()
+        g_ntc = self._g_ntc()
+        g_n = self._g_n()
+        
+        e = ["enriched" for i in np.arange(len(g_e)) for n in np.arange(g_e[i])]
+        d = ["depleted" for i in np.arange(len(g_d)) for n in np.arange(g_d[i])]
+        ntc = ["ntc" for i in np.arange(len(g_ntc)) for n in np.arange(g_ntc[i])]
+        n = ["normal" for i in np.arange(len(g_n)) for n in np.arange(g_n[i])]
+        
+        type_of_change = e + d + ntc + n
+        
         return type_of_change 
     
     
@@ -282,12 +265,16 @@ class Simulator:
             _setting_control_libraries(), _type_of_change() methods.  
             
         """
+        
+        # reorganize this to make code clearer
+        
         gene = pd.DataFrame({"gene": self._gene()})
-        sgRNAs = pd.DataFrame({"sgRNAs": self._num_sgRNAs()})
-        treatment = pd.DataFrame(self._setting_treatment_libraries()).T
+        lam = pd.DataFrame({"lambda": self.lam})
+        S_lam = pd.DataFrame({"modified lambda": self._S_l()})
         control = pd.DataFrame(self._setting_control_libraries()).T
+        treatment = pd.DataFrame(self._setting_treatment_libraries()).T
         type_of_change = pd.DataFrame({"type": self._type_of_change()})
         
-        result = pd.concat([gene, sgRNAs, treatment, control, type_of_change], axis=1, join="inner")
+        result = pd.concat([gene, lam, S_lam, control, treatment, type_of_change], axis=1, join="inner")
 
-        return result 
+        return result
