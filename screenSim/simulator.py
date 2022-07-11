@@ -34,7 +34,6 @@ class Simulator:
         self._init_p()
         self._init_S()
 
-
     def _init_count_totals(self):
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
 
@@ -131,8 +130,8 @@ class Simulator:
         for i in np.arange(self.num_control):
             control.append(self._sum_array(-(i+1), self.lam, self.p))
 
-        return control
-
+        return control     
+        
     def _S_l(self):
         return np.multiply(self.S, self.lam)
 
