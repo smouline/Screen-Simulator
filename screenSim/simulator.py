@@ -34,7 +34,6 @@ class Simulator:
         self._init_p()
         self._init_S()
 
-
     def _init_count_totals(self):
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
      
@@ -50,12 +49,10 @@ class Simulator:
         else:
             raise Exception("Fractions total cannot exceed 1.") 
 
-
     def _init_num_sgRNAs(self):
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         self.sgRNAs = sgRNAs 
-
 
     def _split_genes(self):
         num_e = round(len(self.sgRNAs) * self.fraction_enriched)
@@ -67,15 +64,13 @@ class Simulator:
         self.g_d = self.sgRNAs[num_e: num_e + num_d]
         self.g_ntc = self.sgRNAs[num_e + num_d: num_e + num_d + num_ntc]
         self.g_n = self.sgRNAs[num_e + num_d + num_ntc: num_e + num_d + num_ntc + num_n]
-
-
+        
     def _init_lambda(self):
         self.lam = np.random.uniform(self.bounds[0], self.bounds[1], size = int(self.sgRNAs.sum()))
 
 
     def _init_p(self):
         self.p = np.random.random(size = int(self.sgRNAs.sum()))
-
 
     def _init_S(self):
         S = []
@@ -99,7 +94,6 @@ class Simulator:
                 S.append(1)
 
         self.S = S 
-
 
     def _sgRNAs(self) -> list:
         return ["sgRNA_" + str(int(i)) for i in np.arange(self.sgRNAs.sum())]
@@ -126,7 +120,6 @@ class Simulator:
 
         return a
 
-
     def _setting_treatment_libraries(self) -> list:
         treatment = [] 
 
@@ -134,7 +127,6 @@ class Simulator:
             treatment.append(self._sum_array(i, self._S_l(), self.p))
 
         return treatment
-
 
     def _setting_control_libraries(self) -> list:
         control = [] 
@@ -161,7 +153,6 @@ class Simulator:
         type_of_change = e + d + ntc + n
 
         return type_of_change 
-
 
     def sample(self, seed: int = 10) -> pd.DataFrame:
 
