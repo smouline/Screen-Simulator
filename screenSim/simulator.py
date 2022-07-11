@@ -67,7 +67,9 @@ class Simulator:
             raise Exception("Fractions total cannot exceed 1.")
         
         self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
-
+        # print(self.totals_array)
+        
+        self.normal_bounds = np.array([10, 30])
     
     def _gene(self):
         """
@@ -97,6 +99,95 @@ class Simulator:
         sgRNAs = np.random.normal(loc=self.avg_num_sgRNAs, scale=1, size=self.num_genes)
         sgRNAs = np.round(sgRNAs)
         return sgRNAs 
+    
+    def _scale_e(self):
+        """
+        Scales the no effect bounds up. 
+        
+        Returns
+        -------
+        array
+            The scaling factor is a float within the range [1.2, 2.0)
+        
+        """
+        return self.normal_bounds * np.random.uniform(1.2, 2.0)
+    
+    def _scale_d(self):
+        """
+        Scales the no effect bounds down. 
+        
+        Returns
+        -------
+        array
+            The scaling factor is a float within the range [0.2, 1.0)
+        
+        """
+        return self.normal_bounds * np.random.uniform(0.2, 1.0)
+    
+    def _lamda(self, bounds):
+        """
+        Generates value for lamba for poisson distrubution. 
+        
+        Parameters
+        ----------
+        bounds : array
+            Array with 2 elements--min and max for lambda
+        
+        Returns
+        -------
+        float 
+            The lamda float is within the the first (included) and second element of `bounds`
+        
+        """
+        return np.random.uniform(bounds[0], bounds[1])
+    
+    def _e_dist(self):
+        """
+        Generates poisson distrubution for enriched genes. 
+        
+        Returns
+        -------
+        array
+            description
+        
+        """
+        return np.random.poisson(self._lamda(self._scale_e()), round(self.num_genes * self.fraction_enriched))
+    
+    def _d_dist(self):
+        """
+        Generates poisson distrubution for depleted genes. 
+        
+        Returns
+        -------
+        array
+            description
+        
+        """
+        return np.random.poisson(self._lamda(self._scale_d()), round(self.num_genes * self.fraction_depleted))
+    
+    def _ntc_dist(self):
+        """
+        Generates poisson distrubution for ntc genes. 
+        
+        Returns
+        -------
+        array
+            description
+        
+        """
+        return np.random.poisson(self._lamda(self.normal_bounds), round(self.num_genes * self.fraction_NTC))
+    
+    def _ne_dist(self):
+        """
+        Generates poisson distrubution for normal genes. 
+        
+        Returns
+        -------
+        array
+            description
+        
+        """
+        return np.random.poisson(self._lamda(self.normal_bounds), round(self.num_genes * self.fraction_normal))
         
     def _sum_array(self, index):
         """
@@ -114,10 +205,13 @@ class Simulator:
             array of randomly generated integers with sum of element from `totals_array`    
         
         """
-        a = np.random.random(self.num_genes)
-        a /= a.sum()
+        a = np.concatenate((self._e_dist(), self._d_dist(), self._ntc_dist(), self._ne_dist()))
+        a = a.astype(float)
+        a /= (a.sum())
         a *= self.totals_array[index]
         a = np.round(a)
+        # print(a)
+        # print(a.sum())
         return a
     
     def _setting_treatment_libraries(self):
@@ -152,7 +246,7 @@ class Simulator:
         control = [] 
         
         for i in np.arange(self.num_control):
-            control.append(self._sum_array(-i))
+            control.append(self._sum_array(-(i+1)))
         
         return control
         
