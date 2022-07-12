@@ -15,7 +15,7 @@ class Simulator:
         fraction_enriched: float = 0.2,
         fraction_depleted: float = 0.2,
         fraction_NTC: float = 0.2,
-        type_dist: int = 2):
+        type_dist: str = "poisson"):
         
         """
         Constructor for initializing Simulator object.
@@ -42,8 +42,8 @@ class Simulator:
             The fraction of depleted genes with respect to all genes. 
         fraction_NTC : float
             The fraction of NTC genes with respect to all genes.
-        type_dist : int
-            1 is poisson distrubution and 2 is negative binomial distrubution. 
+        type_dist : str
+            either "poisson" or "negative binomial" distrubution. 
         
         """
         self.num_genes = num_genes
@@ -90,7 +90,7 @@ class Simulator:
             self.fraction_normal = 1.0 - (e + d + ntc)
         else:
             raise Exception("Fractions total cannot exceed 1.") 
-
+    
     def _init_num_sgRNAs(self):
         """
         Generates a number of sgRNAs per gene. 
@@ -115,7 +115,7 @@ class Simulator:
         num_d = round(len(self.sgRNAs) * self.fraction_depleted)
         num_ntc = round(len(self.sgRNAs) * self.fraction_NTC)
         num_n = round(len(self.sgRNAs) * self.fraction_normal)
-
+        
         self.g_e = self.sgRNAs[0: num_e]
         self.g_d = self.sgRNAs[num_e: num_e + num_d]
         self.g_ntc = self.sgRNAs[num_e + num_d: num_e + num_d + num_ntc]
@@ -202,7 +202,7 @@ class Simulator:
         Raises
         ------
         Exception
-            If the integer provided for type_dist is not associated with a distrubution. 
+            If input is not "poisson" or "negative binomial"
             
         Returns
         -------
@@ -211,19 +211,19 @@ class Simulator:
         
         """
         
-        if self.type_dist == 1:
+        if self.type_dist == "poisson":
             a = [np.random.poisson(i, size=1) for i in lambdas]
-        elif self.type_dist == 2:
+        elif self.type_dist == "negative binomial":
             a = [np.random.negative_binomial(i, p, size=1) for i in lambdas for p in p_array]
         else:
-            raise Exception("Make sure to choose a distrubtion type from the available ints")
-
+            raise Exception("Make sure to choose a distrubtion from those available")
+        
         a = np.concatenate(a)
         a = a.astype(float)
         a /= (a.sum())
         a *= self.totals_array[index]
         a = np.round(a)
-
+        
         return a
     
     def _setting_control_libraries(self) -> list:
@@ -254,7 +254,7 @@ class Simulator:
             
         """
         treatment = [] 
-
+        
         for i in np.arange(self.num_treatment):
             treatment.append(self._sum_array(-(i+1), self._S_l(), self.p))
         
@@ -406,6 +406,7 @@ class Simulator:
             sgRNA, gene, lam, S_lam, control, treatments, and modification DataFrames concatenated   
             
         """
+        
         np.random.seed(seed)
         
         result = pd.concat([
