@@ -9,12 +9,16 @@ class Simulator:
         avg_num_sgRNAs: int = 5,  
         num_control: int = 2, 
         num_treatment: int = 2,
-        min_total: int = 1000,
-        max_total: int = 100000,
+        min_total: int = 1e6,
+        max_total: int = 1e8,
         total_NTCs: int = 1000,
         fraction_enriched: float = 0.2,
         fraction_depleted: float = 0.2,
         fraction_NTC: float = 0.2,
+        scalar_e_min: float = 10.0,
+        scalar_e_max: float = 100.0,
+        scalar_d_min: float = 0.01,
+        scalar_d_max: float = 0.10,
         type_dist: str = "poisson"):
         
         """
@@ -43,18 +47,24 @@ class Simulator:
         fraction_NTC : float
             The fraction of NTC genes with respect to all genes.
         type_dist : str
-            either "poisson" or "negative binomial" distrubution. 
+            either "poisson" or "negative binomial" distribution. 
         
-        """
-        self.num_genes = num_genes
-        self.avg_num_sgRNAs = avg_num_sgRNAs
-        self.num_control = num_control
-        self.num_treatment = num_treatment
-        self.min_total = min_total
-        self.max_total = max_total
-        self.total_NTCs = total_NTCs
+        """ 
+        
+        self.num_genes = int(num_genes)
+        self.avg_num_sgRNAs = int(avg_num_sgRNAs)
+        self.num_control = int(num_control)
+        self.num_treatment = int(num_treatment)
+        self.min_total = int(min_total)
+        self.max_total = int(max_total)
+        self.total_NTCs = int(total_NTCs)
+        self.scalar_e_min = scalar_e_min
+        self.scalar_e_max = scalar_e_max
+        self.scalar_d_min = scalar_d_min
+        self.scalar_d_max = scalar_d_max
         self.type_dist = type_dist
         self.bounds = [10, 30]
+        
         
         self._init_count_totals()
         self._init_fractions(fraction_enriched, fraction_depleted, fraction_NTC)
@@ -98,7 +108,7 @@ class Simulator:
         Returns
         -------
         sgRNAs : array
-            The values of the array follow a normal distrubution with the
+            The values of the array follow a normal distribution with the
             mean being `avg_num_sgRNAs`.
         
         """
@@ -143,12 +153,12 @@ class Simulator:
         S = []
 
         for i in self.g_e:
-            g_scalar = np.random.uniform(1.2, 2.0)
+            g_scalar = np.random.uniform(self.scalar_e_min, self.scalar_e_max)
             for n in np.arange(i):
                 S.append(g_scalar)
 
         for i in self.g_d:
-            g_scalar = np.random.uniform(0.2, 1.0)
+            g_scalar = np.random.uniform(self.scalar_d_min, self.scalar_d_max)
             for n in np.arange(i):
                 S.append(g_scalar)
                 
@@ -216,7 +226,7 @@ class Simulator:
         elif self.type_dist == "negative binomial":
             a = [np.random.negative_binomial(i, p, size=1) for i in lambdas for p in p_array]
         else:
-            raise Exception("Make sure to choose a distrubtion from those available")
+            raise Exception("Make sure to choose a distribution from those available")
         
         a = np.concatenate(a)
         a = a.astype(float)
@@ -322,7 +332,7 @@ class Simulator:
     
     def _lam_df(self) -> pd.DataFrame:
         """
-        Puts lambda values a into DataFrame.
+        Puts lambda values into a DataFrame.
         
         Returns
         -------
@@ -331,6 +341,18 @@ class Simulator:
             
         """
         return pd.DataFrame({"lambda": self.lam})
+    
+    def _S_df(self) -> pd.DataFrame:
+        """
+        Puts gene-specific scalar values into a DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Scalar values with label "scalar". 
+            
+        """
+        return pd.DataFrame({"scalar": self.S})
     
     def _S_lam_df(self) -> pd.DataFrame:
         """
@@ -412,7 +434,8 @@ class Simulator:
         result = pd.concat([
             self._sgRNA_df(), 
             self._gene_df(), 
-            self._lam_df(), 
+            self._lam_df(),
+            self._S_df(),
             self._S_lam_df(), 
             self._controls_df(), 
             self._treatments_df(), 
