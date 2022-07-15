@@ -3,11 +3,9 @@ import numpy as np
 import pandas as pd
 from screenSim.simulator import Simulator
 
-# add more later 
-# make it try many dataframes
 
 @pytest.fixture
-def df() -> pd.DataFrame:
+def df() -> Simulator:
     return Simulator(num_genes = 10)
     
 def test_genes(df):
