@@ -15,10 +15,10 @@ class Simulator:
         fraction_enriched: float = 0.2,
         fraction_depleted: float = 0.2,
         fraction_NTC: float = 0.2,
-        scalar_e_min: float = 10.0,
-        scalar_e_max: float = 100.0,
-        scalar_d_min: float = 0.01,
-        scalar_d_max: float = 0.10,
+        scalar_e_min: float = 100.0,
+        scalar_e_max: float = 1000.0,
+        scalar_d_min: float = 0.001,
+        scalar_d_max: float = 0.01,
         type_dist: str = "poisson"):
         
         """
