@@ -14,7 +14,7 @@ class Simulator:
         total_NTCs: int = 1000,
         fraction_enriched: float = 0.2,
         fraction_depleted: float = 0.2,
-        fraction_NTC: float = 0.2,
+        fraction_NTC: float = 0.2
         scalar_e_min: float = 100.0,
         scalar_e_max: float = 1000.0,
         scalar_d_min: float = 0.001,

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from screenSim.simulator import Simulator
 
+
 @pytest.fixture
 def df() -> Simulator:
     return Simulator(num_genes = 10)
