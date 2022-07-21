@@ -119,15 +119,16 @@ class Simulator:
         """
         self.num_g_e = round(self.num_genes * self.fraction_depleted)
         self.num_g_d = round(self.num_genes * self.fraction_depleted)
+        self.num_g_ntc = round(self.num_genes * self.fraction_depleted)
         
     def _split_sgRNAs(self):
         """
-        Calculates number of enriched, depleted, and ntc sgRNAs based on fractions. 
+        Calculates number of enriched, depleted, and ntc sgRNAs.
         
         """
-        self.num_e = round(self.num_sgRNAs * self.fraction_depleted)
-        self.num_d = round(self.num_sgRNAs * self.fraction_depleted)
-        self.num_ntc = round(self.num_sgRNAs * self.fraction_NTC)     
+        self.num_e = self.num_g_e * self.num_sgRNAs_per_gene
+        self.num_d = self.num_g_d * self.num_sgRNAs_per_gene
+        self.num_ntc = self.num_g_ntc * self.num_sgRNAs_per_gene    
     
     def _init_sgRNA(self):
         """
