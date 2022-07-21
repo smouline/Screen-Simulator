@@ -131,14 +131,14 @@ class Simulator:
     
     def _init_sgRNA(self):
         """
-        Initializes array with sequential numbers representing sgRNA numbers. 
+        Initializes array sgRNA labels. 
         
         """ 
         self.sgRNA = [f"sg_{i}" for i in np.arange(self.num_sgRNAs)]
     
     def _init_gene(self) -> list:
         """
-        Initializes array with numbers representing gene numbers. 
+        Initializes array with gene labels. 
         
         """
         gene = np.arange(self.num_genes)
@@ -189,7 +189,7 @@ class Simulator:
         """
         self.S_l = np.multiply(self.S, self.lam)
      
-    def _init_modification(self) -> list:
+    def _init_modification(self):
         """
         Labels each sgRNA as enriched, depleted, ntc, or normal. 
         
