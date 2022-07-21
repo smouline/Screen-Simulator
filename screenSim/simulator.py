@@ -134,15 +134,21 @@ class Simulator:
         Initializes array with sequential numbers representing sgRNA numbers. 
         
         """ 
-        self.sgRNA = np.arange(self.num_sgRNAs)
+        self.sgRNA = [f"sg_{i}" for i in np.arange(self.num_sgRNAs)]
     
     def _init_gene(self) -> list:
         """
         Initializes array with numbers representing gene numbers. 
         
         """
-        gene = np.arange(20000) 
-        self.gene = np.repeat(gene, self.num_sgRNAs_per_gene)
+        gene = np.arange(self.num_genes)
+        gene = np.repeat(gene, self.num_sgRNAs_per_gene)
+        gene_label = [f"gene_{i}" for i in gene]
+        
+        ntc_genes = gene[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc]
+        gene_label[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc] = [f"ntc_{i}" for i in ntc_genes]
+        
+        self.gene = gene_label
     
     def _init_lambda(self):
         """
@@ -196,15 +202,13 @@ class Simulator:
         mod[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc] = ["ntc"] * self.num_ntc
         
         self.modification = mod
-    
-    def _sum_array(self, index: int, lambdas: np.ndarray, p_array: np.ndarray) -> np.ndarray:
+        
+    def _sampling(self, lambdas: np.ndarray, p_array: np.ndarray) -> np.ndarray:
         """
-        Creates an array of random integers with a specified sum.
+        Generates count values for each lambda/p value given a distribution.
         
         Parameters
         ----------
-        index : int
-            Index to specify which total to use from `totals_array`.
         lambdas: np.ndarray
             To use as lam in poisson or n in negative binomial.
         p_array: np.ndarray 
@@ -213,12 +217,12 @@ class Simulator:
         Raises
         ------
         Exception
-            If input is not "poisson" or "negative binomial"
+            If input is not "poisson" or "negative binomial".
             
         Returns
         -------
-        a : array
-            Randomly generated integers with sum of element from `totals_array`    
+        a : np.ndarray
+            Count values for a given library. 
         
         """
         
@@ -228,13 +232,33 @@ class Simulator:
             a = np.random.negative_binomial(lambdas, p_array)
         else:
             raise Exception("Make sure to choose a distribution from those available.")
-        
-        a = a.astype(float)
-        a /= (a.sum())
-        a *= self.totals_array[index]
-        a = np.round(a)
-        
+            
         return a
+        
+    
+    def _normalize(self, norm: np.ndarray, index: int) -> np.ndarray:
+        """
+        Adjusts array to have specified total.
+        
+        Parameters
+        ----------
+        norm: np.ndarray
+            Array to normalize. 
+        index : int
+            Index to specify which total to use from `totals_array`.
+        
+        Returns
+        -------
+        norm : np.ndarray
+            Array with a total of an elemnet from `totals_array`    
+        
+        """
+        norm = norm.astype(float)
+        norm /= (norm.sum())
+        norm *= self.totals_array[index]
+        norm = np.round(norm)
+        
+        return norm
     
     def _setting_control_libraries(self, control: pd.DataFrame):
         """
@@ -242,7 +266,7 @@ class Simulator:
             
         """
         for i in np.arange(self.num_control):
-            control[f"control_{i}"] = self._sum_array(i, self.lam, self.p)
+            control[f"control_{i}"] = self._normalize(self._sampling(self.lam, self.p), i)
     
     def _setting_treatment_libraries(self, treatment: pd.DataFrame):
         """
@@ -250,7 +274,7 @@ class Simulator:
             
         """
         for i in np.arange(self.num_treatment):
-            treatment[f"treatment_{i}"] = self._sum_array(-(i+1), self.S_l, self.p)
+            treatment[f"treatment_{i}"] = self._normalize(self._sampling(self.S_l, self.p), -(i+1))
     
     def sample(self, seed: int = 10) -> pd.DataFrame:
         """
