@@ -8,7 +8,7 @@ def sim() -> Simulator:
     return Simulator(num_genes = 10)
     
 def test_genes(sim):
-    assert sim.num_genes == 10
+    assert sim.num_genes == 9
 
 def test_sgRNAs(sim):
     sim.num_sgRNAs == sim.num_genes * sim.num_sgRNAs_per_gene
