@@ -11,7 +11,6 @@ class Simulator:
         num_treatment: int = 2,
         min_total: int = 1e6,
         max_total: int = 1e8,
-        total_NTCs: int = 1000,
         fraction_enriched: float = 0.2,
         fraction_depleted: float = 0.2,
         fraction_NTC: float = 0.2,
@@ -38,8 +37,6 @@ class Simulator:
             The lower bound of the total number of counts for one library. 
         max_total : int
             The upper bound of the total number of counts for one library.
-        total_NTCs : int
-            Total number of non-targeting controls.
         fraction_enriched : float
             The fraction of enriched genes with respect to all genes. 
         fraction_depleted : float
@@ -52,22 +49,18 @@ class Simulator:
         """ 
         
         self.num_genes = int(num_genes)
-        self.num_sgRNAs_per_gene = num_sgRNAs_per_gene
+        self.num_sgRNAs_per_gene = int(num_sgRNAs_per_gene)
         self.num_control = int(num_control)
         self.num_treatment = int(num_treatment)
-        self.min_total = int(min_total)
-        self.max_total = int(max_total)
-        self.total_NTCs = int(total_NTCs)
-        self.scalar_e_min = scalar_e_min
-        self.scalar_e_max = scalar_e_max
-        self.scalar_d_min = scalar_d_min
-        self.scalar_d_max = scalar_d_max
         self.type_dist = type_dist
-        self.bounds = [10, 30]
+        self.bounds = (10, 30)
         
+        self._init_totals_bounds(int(min_total), int(max_total))
+        self._init_e_bounds(scalar_e_min, scalar_e_max)
+        self._init_d_bounds(scalar_d_min, scalar_d_max)
         self._init_count_totals()
         self._init_fractions(fraction_enriched, fraction_depleted, fraction_NTC)
-        self._num_sgRNA()
+        self._num_sgRNAs()
         self._split_genes()
         self._split_sgRNAs()
         self._init_sgRNA()
@@ -77,7 +70,55 @@ class Simulator:
         self._init_S()
         self._init_S_l()
         self._init_modification()
+        
+    def _init_totals_bounds(self, lower: int, upper: int):
+        """
+        Initializes count totals bounds. 
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.min_total = lower
+            self.max_total = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and min_total should be less than max_total.")
+            
+    def _init_e_bounds(self, lower: float, upper: float):
+        """
+        Initializes the enriched scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.scalar_e_min = lower
+            self.scalar_e_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
      
+    def _init_d_bounds(self, lower: float, upper: float):
+        """
+        Initializes the depleted scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.scalar_d_min = lower
+            self.scalar_d_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_d_min should be less than scalar_d_max.")
+   
     def _init_count_totals(self):
         """
         Initializes total sgRNA counts for each library. 
@@ -105,7 +146,7 @@ class Simulator:
         else:
             raise Exception("Fractions total cannot exceed 1.") 
     
-    def _num_sgRNA(self):
+    def _num_sgRNAs(self):
         """
         Calculates total number of sgRNAs.  
         
@@ -114,7 +155,7 @@ class Simulator:
     
     def _split_genes(self):
         """
-        Calculates number of enriched and depleted genes based on fractions. 
+        Calculates number of enriched, depleted, and ntc genes based on fractions. 
         
         """
         self.num_g_e = round(self.num_genes * self.fraction_depleted)
