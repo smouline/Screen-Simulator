@@ -3,45 +3,48 @@ import numpy as np
 import pandas as pd
 from screenSim.simulator import Simulator
 
-
 @pytest.fixture
-def df() -> Simulator:
+def sim() -> Simulator:
     return Simulator(num_genes = 10)
     
-def test_genes(df):
-    assert df.num_genes == 10
+def test_genes(sim):
+    assert sim.num_genes == 10
 
-def test_fractions(df):
-    assert df.fraction_enriched + df.fraction_depleted + df.fraction_NTC + df.fraction_normal == 1
+def test_sgRNAs(sim):
+    sim.num_sgRNAs == sim.num_genes * sim.num_sgRNAs_per_gene
+
+def test_fractions(sim):
+    assert sim.fraction_enriched + sim.fraction_depleted + sim.fraction_NTC + sim.fraction_normal == 1
      
-def test_totals_array(df):
-    for i in df.totals_array:
-        assert (i < df.max_total) & (i > df.min_total)
+def test_totals_array(sim):
+    for i in sim.totals_array:
+        assert (i < sim.max_total) & (i > sim.min_total)
     
-def test_totals_array_2(df):
-    assert len(df.totals_array) == df.num_control + df.num_treatment
+def test_totals_array_len(sim):
+    assert len(sim.totals_array) == sim.num_control + sim.num_treatment
     
-def test_num_types(df):
-    assert len(df.g_e) + len(df.g_d) + len(df.g_ntc) + len(df.g_n) == df.num_genes
-    
-def test_lambda(df): 
-    for i in df.lam:
-        assert (i > df.bounds[0]) & (i < df.bounds[1])
-
-def test_control_sums(df):
-    controls = df._setting_control_libraries()
-    total = df.totals_array
-    for i in range(len(controls)):
-        assert abs((controls[i].sum() - total[i])/total[i]) < 0.05
-
-def test_treatment_sums(df):
-    treatments = df._setting_treatment_libraries()
-    total = df.totals_array
-    for i in range(len(treatments)):
-        assert abs((treatments[i].sum() - total[-(i+1)])/total[-(i+1)]) < 0.05
+def test_lambda(sim): 
+    for i in sim.lam:
+        assert (i > sim.bounds[0]) & (i < sim.bounds[1])
         
-def test_sgRNA_average(df):
-    assert (np.mean(df.sgRNAs) - df.avg_num_sgRNAs)/df.avg_num_sgRNAs < 0.10
+def test_number_ntcs(sim):
+    df = sim.sample()
+    df_ntc = df[df.gene.str.contains("ntc")]
+    assert len(df_ntc) == sim.num_e == round(sim.num_sgRNAs * sim.fraction_depleted)
+
+def test_control_sums(sim):
+    controls = pd.DataFrame()
+    sim._setting_control_libraries(controls)
+    total = sim.totals_array
+    for i in range(sim.num_control):
+        assert abs((controls[controls.columns[i]].sum() - total[i])/total[i]) < 0.05
+
+def test_treatment_sums(sim):
+    treatments = pd.DataFrame()
+    sim._setting_treatment_libraries(treatments)
+    total = sim.totals_array
+    for i in range(sim.num_treatment):
+        assert abs((treatments[treatments.columns[i]].sum() - total[-(i+1)])/total[-(i+1)]) < 0.05
     
 
         

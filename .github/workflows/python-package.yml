@@ -16,7 +16,8 @@ jobs:
         python-version: 3.8
     - name: Install dependencies
       run: |
-        # install pyscreen 
+        # install Screen-Simulator 
         pip install . && pip install pytest
     - name: Test with pytest
       run: |
+        pytest -v
