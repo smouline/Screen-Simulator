@@ -51,11 +51,34 @@ class Simulator:
             The lower bound of the total number of counts for one library. 
         max_total : int
             The upper bound of the total number of counts for one library.
+        lam_min : float
+            The lower bound for lambda values.
+        lam_max : float
+            The upper bound for lambda values.
+        p_min : float
+            The lower bound for probability values.
+        p_max : float
+            The upper bound for probability values.
+        lam_e_min : float
+            The lower bound for the lambda enriched scalars. 
+        lam_e_max : float
+            The upper bound for the lambda enriched scalars.
+        lam_d_min : float
+            The lower bound for the lambda depleted scalars. 
+        lam_d_max : float
+            The upper bound for the lambda depleted scalars.
+        p_e_min : float
+            The lower bound for the p enriched scalars. 
+        p_e_max : float
+            The upper bound for the p enriched scalars.
+        p_d_min : float
+            The lower bound for the p depleted scalars. 
+        p_d_max : float
+            The upper bound for the p depleted scalars.
         type_dist : str
             Either "poisson" or "negative binomial" distribution. 
         
         """ 
-        
         self.num_genes = int(num_genes)
         self.num_sgRNAs_per_gene = int(num_sgRNAs_per_gene)
         self.num_control = int(num_control)
@@ -123,7 +146,7 @@ class Simulator:
             
     def _init_lam_bounds(self, lower: float, upper: float):
         """
-        Initializes the enriched scalar bounds.
+        Initializes lambda bounds.
         
         Raises
         ------
@@ -135,19 +158,27 @@ class Simulator:
             self.lam_min = lower
             self.lam_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            raise Exception("Lower/upper bounds must be positive and lam_min should be less than lam_max.")
     
     def _init_p_bounds(self, lower: float, upper: float):
+        """
+        Initializes probability bounds.
         
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
         if ((lower < upper) & (lower > 0) & (upper > 0)):
             self.p_min = lower
             self.p_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            raise Exception("Lower/upper bounds must be positive and p_min should be less than p_max.")
             
     def _init_e_lam(self, lower: float, upper: float):
         """
-        Initializes the enriched scalar bounds.
+        Initializes the enriched scalar bounds for lambda.
         
         Raises
         ------
@@ -159,33 +190,27 @@ class Simulator:
             self.lam_e_min = lower
             self.lam_e_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            raise Exception("Lower/upper bounds must be positive and lam_e_min should be less than lam_e_max.")
      
     def _init_d_lam(self, lower: float, upper: float):
         """
-        Initializes the depleted scalar bounds.
+        Initializes the depleted scalar bounds for lambda.
         
         Raises
         ------
         Exception
             If lower/upper bounds <= 0 and/or lower > upper.
         
-        S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
-        S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
-        
-        self.S = S 
-        
-    def _init_S_l(self):
         """
         if ((lower < upper) & (lower > 0) & (upper > 0)):
             self.lam_d_min = lower
             self.lam_d_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and scalar_d_min should be less than scalar_d_max.")
+            raise Exception("Lower/upper bounds must be positive and lam_d_min should be less than lam_d_max.")
             
     def _init_e_p(self, lower: float, upper: float):
         """
-        Initializes the enriched scalar bounds.
+        Initializes the enriched scalar bounds for p.
         
         Raises
         ------
@@ -197,11 +222,11 @@ class Simulator:
             self.p_e_min = lower
             self.p_e_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            raise Exception("Lower/upper bounds must be positive and p_e_min should be less than p_e_max.")
             
     def _init_d_p(self, lower: float, upper: float):
         """
-        Initializes the enriched scalar bounds.
+        Initializes the depleted scalar bounds for p.
         
         Raises
         ------
@@ -213,7 +238,7 @@ class Simulator:
             self.p_d_min = lower
             self.p_d_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            raise Exception("Lower/upper bounds must be positive and p_d_min should be less than p_d_max.")
    
     def _num_sgRNAs(self):
         """
@@ -287,7 +312,7 @@ class Simulator:
     
     def _init_S_lam(self):
         """
-        Initializes gene-specific scalars for each gene. 
+        Initializes gene-specific lambda scalars for each gene. 
         
         """
         S = np.ones(self.num_sgRNAs)
@@ -301,26 +326,34 @@ class Simulator:
         self.S_lam = S 
         
     def _init_S_p(self):
+        """
+        Initializes gene-specific p scalars for each gene if the distribution is negative binomial. 
         
+        """
         S = np.ones(self.num_sgRNAs)
         
-        gene_e_scalars = np.random.uniform(self.p_e_min, self.p_e_max, size = self.num_g_e)
-        gene_d_scalars = np.random.uniform(self.p_d_min, self.p_d_max, size = self.num_g_d)
-        
-        S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
-        S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
-        
+        if self.type_dist == "negative binomial":
+
+            gene_e_scalars = np.random.uniform(self.p_e_min, self.p_e_max, size = self.num_g_e)
+            gene_d_scalars = np.random.uniform(self.p_d_min, self.p_d_max, size = self.num_g_d)
+
+            S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
+            S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
+
         self.S_p = S 
         
     def _mult_S_lam(self):
         """
-        Scales the lambdas for treatment libraries by performing an element-wise product of `S` and `lam`.
+        Scales the lambdas for treatment libraries by performing an element-wise product of `S_lam` and `lam`.
             
         """
         self.S_x_lam = np.multiply(self.S_lam, self.lam)
     
     def _mult_S_p(self):
-        
+        """
+        Scales p for treatment libraries by performing an element-wise product of `S_p` and `p`.
+            
+        """
         self.S_x_p = np.multiply(self.S_p, self.p) 
      
     def _init_modification(self):
@@ -369,7 +402,6 @@ class Simulator:
             
         return a
         
-    
     def _normalize(self, norm: np.ndarray, index: int) -> np.ndarray:
         """
         Adjusts array to have specified total.
@@ -401,7 +433,7 @@ class Simulator:
         """
         for i in np.arange(self.num_control):
             control[f"control_{i}"] = self._normalize(self._sampling(self.lam, self.p), i)
-    
+
     def _setting_treatment_libraries(self, treatment: pd.DataFrame):
         """
         Generates values for treatment libraries with _sum_array() and appends each library as a column to passed pd.DataFrame.
@@ -423,7 +455,8 @@ class Simulator:
         Returns
         -------
         result : pd.DataFrame 
-            sgRNA, gene, lambda, scalar, scaled lambda, modification, and each control and treatment library as columns
+            sgRNA, gene, lambda, lam scalar, scaled lambda, (p, p scalar, scaled p),  
+            modification, and each control and treatment library as columns
         """
         
         np.random.seed(seed)
@@ -445,6 +478,7 @@ class Simulator:
                 "lambda": self.lam,
                 "lam scalar": self.S_lam, 
                 "scaled lambda": self.S_x_lam,
+                "p": self.p,
                 "p scalar": self.S_p,
                 "scaled p": self.S_x_p,
                 "modification": self.modification
