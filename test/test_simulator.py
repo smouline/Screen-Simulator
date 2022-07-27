@@ -25,11 +25,11 @@ def test_totals_array_len(sim):
     
 def test_lambda(sim): 
     for i in sim.lam:
-        assert (i > sim.bounds[0]) & (i < sim.bounds[1])
+        assert (i > sim.lam_min) & (i < sim.lam_max)
         
 def test_number_ntcs(sim):
     df = sim.sample()
-    df_ntc = df[df.gene.str.contains("ntc")]
+    df_ntc = df[df.gene.str.contains("non-targeting")]
     assert len(df_ntc) == sim.num_e == round(sim.num_sgRNAs * sim.fraction_depleted)
 
 def test_control_sums(sim):
