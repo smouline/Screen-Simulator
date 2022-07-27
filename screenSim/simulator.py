@@ -9,15 +9,23 @@ class Simulator:
         num_sgRNAs_per_gene = 5,
         num_control: int = 2, 
         num_treatment: int = 2,
-        min_total: int = 1e6,
-        max_total: int = 1e8,
         fraction_enriched: float = 0.2,
         fraction_depleted: float = 0.2,
         fraction_NTC: float = 0.2,
-        scalar_e_min: float = 1.2,
-        scalar_e_max: float = 2.0,
-        scalar_d_min: float = 0.2,
-        scalar_d_max: float = 1.0,
+        min_total: int = 1e6,
+        max_total: int = 1e8,
+        lam_min: float = 0.44,
+        lam_max: float = 1.44,
+        p_min: float = 2.3e-3,
+        p_max: float = 2.7e-3,
+        lam_e_min: float = 1.2,
+        lam_e_max: float = 2.0,
+        lam_d_min: float = 0.2,
+        lam_d_max: float = 1.0,
+        p_e_min: float = 0.2,
+        p_e_max: float = 1.0,
+        p_d_min: float = 1.2,
+        p_d_max: float = 2.0,
         type_dist: str = "poisson"):
         
         """
@@ -32,17 +40,17 @@ class Simulator:
         num_treatment : int
             Number of treatment libraries.
         num_control : int
-            Number of control libraries. 
-        min_total : int
-            The lower bound of the total number of counts for one library. 
-        max_total : int
-            The upper bound of the total number of counts for one library.
+            Number of control libraries.
         fraction_enriched : float
             The fraction of enriched genes with respect to all genes. 
         fraction_depleted : float
             The fraction of depleted genes with respect to all genes. 
         fraction_NTC : float
             The fraction of NTC genes with respect to all genes.
+        min_total : int
+            The lower bound of the total number of counts for one library. 
+        max_total : int
+            The upper bound of the total number of counts for one library.
         type_dist : str
             Either "poisson" or "negative binomial" distribution. 
         
@@ -53,79 +61,30 @@ class Simulator:
         self.num_control = int(num_control)
         self.num_treatment = int(num_treatment)
         self.type_dist = type_dist
-        self.bounds = (10, 30)
-        
-        self._init_totals_bounds(int(min_total), int(max_total))
-        self._init_e_bounds(scalar_e_min, scalar_e_max)
-        self._init_d_bounds(scalar_d_min, scalar_d_max)
-        self._init_count_totals()
+
         self._init_fractions(fraction_enriched, fraction_depleted, fraction_NTC)
+        self._init_totals_bounds(int(min_total), int(max_total))
+        self._init_lam_bounds(lam_min, lam_max)
+        self._init_p_bounds(p_min, p_max)
+        self._init_e_lam(lam_e_min, lam_e_max)
+        self._init_d_lam(lam_d_min, lam_d_max)
+        self._init_e_p(p_e_min, p_e_max)
+        self._init_d_p(p_d_min, p_d_max)
+        
         self._num_sgRNAs()
+        self._init_count_totals()
         self._split_genes()
         self._split_sgRNAs()
         self._init_sgRNA()
         self._init_gene()
         self._init_lambda()
         self._init_p()
-        self._init_S()
-        self._init_S_l()
+        self._init_S_lam()
+        self._init_S_p()
+        self._mult_S_lam()
+        self._mult_S_p()
         self._init_modification()
         
-    def _init_totals_bounds(self, lower: int, upper: int):
-        """
-        Initializes count totals bounds. 
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
-            self.min_total = lower
-            self.max_total = upper
-        else:
-            raise Exception("Lower/upper bounds must be positive and min_total should be less than max_total.")
-            
-    def _init_e_bounds(self, lower: float, upper: float):
-        """
-        Initializes the enriched scalar bounds.
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
-            self.scalar_e_min = lower
-            self.scalar_e_max = upper
-        else:
-            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
-     
-    def _init_d_bounds(self, lower: float, upper: float):
-        """
-        Initializes the depleted scalar bounds.
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
-            self.scalar_d_min = lower
-            self.scalar_d_max = upper
-        else:
-            raise Exception("Lower/upper bounds must be positive and scalar_d_min should be less than scalar_d_max.")
-   
-    def _init_count_totals(self):
-        """
-        Initializes total sgRNA counts for each library. 
-        
-        """
-        self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control)
-     
     def _init_fractions(self, e: float, d: float, ntc: float):
         """
         Initializes the enriched, depleted, NTC, and normal fractions.
@@ -144,14 +103,131 @@ class Simulator:
             self.fraction_NTC = ntc
             self.fraction_normal = 1.0 - (e + d + ntc)
         else:
-            raise Exception("Fractions total cannot exceed 1.") 
+            raise Exception("Fractions total cannot exceed 1.")
+       
+    def _init_totals_bounds(self, lower: int, upper: int):
+        """
+        Initializes count totals bounds. 
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.min_total = lower
+            self.max_total = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and min_total should be less than max_total.")
+            
+    def _init_lam_bounds(self, lower: float, upper: float):
+        """
+        Initializes the enriched scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.lam_min = lower
+            self.lam_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
     
+    def _init_p_bounds(self, lower: float, upper: float):
+        
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.p_min = lower
+            self.p_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            
+    def _init_e_lam(self, lower: float, upper: float):
+        """
+        Initializes the enriched scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.lam_e_min = lower
+            self.lam_e_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+     
+    def _init_d_lam(self, lower: float, upper: float):
+        """
+        Initializes the depleted scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
+        S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
+        
+        self.S = S 
+        
+    def _init_S_l(self):
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.lam_d_min = lower
+            self.lam_d_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_d_min should be less than scalar_d_max.")
+            
+    def _init_e_p(self, lower: float, upper: float):
+        """
+        Initializes the enriched scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.p_e_min = lower
+            self.p_e_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+            
+    def _init_d_p(self, lower: float, upper: float):
+        """
+        Initializes the enriched scalar bounds.
+        
+        Raises
+        ------
+        Exception
+            If lower/upper bounds <= 0 and/or lower > upper.
+        
+        """
+        if ((lower < upper) & (lower > 0) & (upper > 0)):
+            self.p_d_min = lower
+            self.p_d_max = upper
+        else:
+            raise Exception("Lower/upper bounds must be positive and scalar_e_min should be less than scalar_e_max.")
+   
     def _num_sgRNAs(self):
         """
         Calculates total number of sgRNAs.  
         
         """
         self.num_sgRNAs = self.num_genes * self.num_sgRNAs_per_gene
+        
+    def _init_count_totals(self):
+        """
+        Initializes total sgRNA counts for each library. 
+        
+        """
+        self.totals_array = np.random.randint(self.min_total, self.max_total, size = self.num_treatment + self.num_control) 
     
     def _split_genes(self):
         """
@@ -188,7 +264,7 @@ class Simulator:
         gene_label = [f"gene_{i}" for i in gene]
         
         ntc_genes = gene[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc]
-        gene_label[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc] = [f"ntc_{i}" for i in ntc_genes]
+        gene_label[self.num_e + self.num_d: self.num_e + self.num_d + self.num_ntc] = [f"non-targeting_{i}" for i in ntc_genes]
         
         self.gene = gene_label
     
@@ -197,7 +273,7 @@ class Simulator:
         Initializes a lambda for each sgRNA.
         
         """
-        self.lam = np.random.uniform(self.bounds[0], self.bounds[1], size = self.num_sgRNAs)
+        self.lam = np.random.uniform(self.lam_min, self.lam_max, size = self.num_sgRNAs)
 
     def _init_p(self):
         """
@@ -205,31 +281,47 @@ class Simulator:
         
         """
         if self.type_dist == "negative binomial":
-            self.p = np.random.random(size = self.num_sgRNAs)
+            self.p = np.random.uniform(self.p_min, self.p_max, size = self.num_sgRNAs)
         else:
             self.p = 0
     
-    def _init_S(self):
+    def _init_S_lam(self):
         """
         Initializes gene-specific scalars for each gene. 
         
         """
         S = np.ones(self.num_sgRNAs)
         
-        gene_e_scalars = np.random.uniform(self.scalar_e_min, self.scalar_e_max, size = self.num_g_e)
-        gene_d_scalars = np.random.uniform(self.scalar_d_min, self.scalar_d_max, size = self.num_g_d)
+        gene_e_scalars = np.random.uniform(self.lam_e_min, self.lam_e_max, size = self.num_g_e)
+        gene_d_scalars = np.random.uniform(self.lam_d_min, self.lam_d_max, size = self.num_g_d)
         
         S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
         S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
         
-        self.S = S 
+        self.S_lam = S 
         
-    def _init_S_l(self):
+    def _init_S_p(self):
+        
+        S = np.ones(self.num_sgRNAs)
+        
+        gene_e_scalars = np.random.uniform(self.p_e_min, self.p_e_max, size = self.num_g_e)
+        gene_d_scalars = np.random.uniform(self.p_d_min, self.p_d_max, size = self.num_g_d)
+        
+        S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
+        S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
+        
+        self.S_p = S 
+        
+    def _mult_S_lam(self):
         """
         Scales the lambdas for treatment libraries by performing an element-wise product of `S` and `lam`.
             
         """
-        self.S_l = np.multiply(self.S, self.lam)
+        self.S_x_lam = np.multiply(self.S_lam, self.lam)
+    
+    def _mult_S_p(self):
+        
+        self.S_x_p = np.multiply(self.S_p, self.p) 
      
     def _init_modification(self):
         """
@@ -299,7 +391,7 @@ class Simulator:
         norm /= (norm.sum())
         norm *= self.totals_array[index]
         norm = np.round(norm)
-        
+      
         return norm
     
     def _setting_control_libraries(self, control: pd.DataFrame):
@@ -316,7 +408,7 @@ class Simulator:
             
         """
         for i in np.arange(self.num_treatment):
-            treatment[f"treatment_{i}"] = self._normalize(self._sampling(self.S_l, self.p), -(i+1))
+            treatment[f"treatment_{i}"] = self._normalize(self._sampling(self.S_x_lam, self.S_x_p), -(i+1))
     
     def sample(self, seed: int = 10) -> pd.DataFrame:
         """
@@ -336,15 +428,28 @@ class Simulator:
         
         np.random.seed(seed)
         
-        result = pd.DataFrame({
+        if self.type_dist == "poisson":
+            result = pd.DataFrame({
             "sgRNA": self.sgRNA, 
             "gene": self.gene, 
             "lambda": self.lam,
-            "scalar": self.S, 
-            "scaled lambda": self.S_l,
+            "lam scalar": self.S_lam, 
+            "scaled lambda": self.S_x_lam,
             "modification": self.modification
         })
-                    
+            
+        elif self.type_dist == "negative binomial":
+            result = pd.DataFrame({
+                "sgRNA": self.sgRNA, 
+                "gene": self.gene, 
+                "lambda": self.lam,
+                "lam scalar": self.S_lam, 
+                "scaled lambda": self.S_x_lam,
+                "p scalar": self.S_p,
+                "scaled p": self.S_x_p,
+                "modification": self.modification
+            })
+
         self._setting_control_libraries(result)
         self._setting_treatment_libraries(result)
         
