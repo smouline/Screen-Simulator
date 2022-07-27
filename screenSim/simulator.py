@@ -170,6 +170,12 @@ class Simulator:
         Exception
             If lower/upper bounds <= 0 and/or lower > upper.
         
+        S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
+        S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
+        
+        self.S = S 
+        
+    def _init_S_l(self):
         """
         if ((lower < upper) & (lower > 0) & (upper > 0)):
             self.lam_d_min = lower
@@ -385,7 +391,7 @@ class Simulator:
         norm /= (norm.sum())
         norm *= self.totals_array[index]
         norm = np.round(norm)
-        
+      
         return norm
     
     def _setting_control_libraries(self, control: pd.DataFrame):
