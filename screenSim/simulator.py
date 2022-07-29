@@ -454,7 +454,7 @@ class Simulator:
             
     def _norm(self, array: np.ndarray) -> np.ndarray:
         """
-        Normalizes array to sum 1000. 
+        Normalizes array to sum 1. 
         
         Parameters
         ----------
@@ -464,11 +464,10 @@ class Simulator:
         Returns
         -------
         array : np.ndarray
-            Array with a total of 1000.
+            Array with a total of 1.
             
         """
         array = array / array.sum()
-        array = array * 1000
         return array
         
     
@@ -487,6 +486,9 @@ class Simulator:
         
         control = sum(norm_controls)/len(norm_controls)
         treatment = sum(norm_treatments)/len(norm_treatments)
+        
+        df["control_mean"] = control
+        df["treatment_mean"] = treatment
         
         df["lfc"] = np.log2(treatment/control)
         
