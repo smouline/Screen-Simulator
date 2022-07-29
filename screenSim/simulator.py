@@ -14,19 +14,20 @@ class Simulator:
         fraction_NTC: float = 0.2,
         min_total: int = 1e6,
         max_total: int = 1e8,
-        lam_min: float = 0.44,
-        lam_max: float = 1.44,
+        lam_min: float = 1.2,
+        lam_max: float = 1.6,
         p_min: float = 2.3e-3,
         p_max: float = 2.7e-3,
-        lam_e_min: float = 1.2,
+        lam_e_min: float = 0.5,
         lam_e_max: float = 2.0,
-        lam_d_min: float = 0.2,
-        lam_d_max: float = 1.0,
-        p_e_min: float = 0.2,
-        p_e_max: float = 1.0,
-        p_d_min: float = 1.2,
+        lam_d_min: float = -2.0,
+        lam_d_max: float = -0.5,
+        p_e_min: float = -2.0,
+        p_e_max: float = -0.5,
+        p_d_min: float = 0.5,
         p_d_max: float = 2.0,
-        type_dist: str = "poisson"):
+        type_dist: str = "negative binomial",
+        seed: int = 10):
         
         """
         Constructor for initializing Simulator object.
@@ -77,8 +78,13 @@ class Simulator:
             The upper bound for the p depleted scalars.
         type_dist : str
             Either "poisson" or "negative binomial" distribution. 
+        seed : int
+            Simulators are repeatable for the same `seed`.
         
         """ 
+        
+        np.random.seed(seed)
+        
         self.num_genes = int(num_genes)
         self.num_sgRNAs_per_gene = int(num_sgRNAs_per_gene)
         self.num_control = int(num_control)
@@ -186,11 +192,11 @@ class Simulator:
             If lower/upper bounds <= 0 and/or lower > upper.
         
         """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
+        if (lower < upper):
             self.lam_e_min = lower
             self.lam_e_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and lam_e_min should be less than lam_e_max.")
+            raise Exception("lam_e_min should be less than lam_e_max.")
      
     def _init_d_lam(self, lower: float, upper: float):
         """
@@ -202,11 +208,11 @@ class Simulator:
             If lower/upper bounds <= 0 and/or lower > upper.
         
         """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
+        if (lower < upper):
             self.lam_d_min = lower
             self.lam_d_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and lam_d_min should be less than lam_d_max.")
+            raise Exception("lam_d_min should be less than lam_d_max.")
             
     def _init_e_p(self, lower: float, upper: float):
         """
@@ -218,11 +224,11 @@ class Simulator:
             If lower/upper bounds <= 0 and/or lower > upper.
         
         """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
+        if (lower < upper):
             self.p_e_min = lower
             self.p_e_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and p_e_min should be less than p_e_max.")
+            raise Exception("p_e_min should be less than p_e_max.")
             
     def _init_d_p(self, lower: float, upper: float):
         """
@@ -234,11 +240,11 @@ class Simulator:
             If lower/upper bounds <= 0 and/or lower > upper.
         
         """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
+        if (lower < upper):
             self.p_d_min = lower
             self.p_d_max = upper
         else:
-            raise Exception("Lower/upper bounds must be positive and p_d_min should be less than p_d_max.")
+            raise Exception("p_d_min should be less than p_d_max.")
    
     def _num_sgRNAs(self):
         """
@@ -318,7 +324,9 @@ class Simulator:
         S = np.ones(self.num_sgRNAs)
         
         gene_e_scalars = np.random.uniform(self.lam_e_min, self.lam_e_max, size = self.num_g_e)
+        gene_e_scalars = np.exp2(gene_e_scalars)
         gene_d_scalars = np.random.uniform(self.lam_d_min, self.lam_d_max, size = self.num_g_d)
+        gene_d_scalars = np.exp2(gene_d_scalars)
         
         S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
         S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
@@ -335,8 +343,10 @@ class Simulator:
         if self.type_dist == "negative binomial":
 
             gene_e_scalars = np.random.uniform(self.p_e_min, self.p_e_max, size = self.num_g_e)
+            gene_e_scalars = np.exp2(gene_e_scalars)
             gene_d_scalars = np.random.uniform(self.p_d_min, self.p_d_max, size = self.num_g_d)
-
+            gene_d_scalars = np.exp2(gene_d_scalars)
+            
             S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
             S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
 
@@ -416,7 +426,7 @@ class Simulator:
         Returns
         -------
         norm : np.ndarray
-            Array with a total of an elemnet from `totals_array`    
+            Array with a total of an element from `totals_array`    
         
         """
         norm = norm.astype(float)
@@ -426,23 +436,61 @@ class Simulator:
       
         return norm
     
-    def _setting_control_libraries(self, control: pd.DataFrame):
+    def _setting_control_libraries(self, df: pd.DataFrame):
         """
         Generates values for control libraries with _sum_array() and appends each library as a column to passed pd.DataFrame.
             
         """
         for i in np.arange(self.num_control):
-            control[f"control_{i}"] = self._normalize(self._sampling(self.lam, self.p), i)
+            df[f"control_{i}"] = self._normalize(self._sampling(self.lam, self.p), i)
 
-    def _setting_treatment_libraries(self, treatment: pd.DataFrame):
+    def _setting_treatment_libraries(self, df: pd.DataFrame):
         """
         Generates values for treatment libraries with _sum_array() and appends each library as a column to passed pd.DataFrame.
             
         """
         for i in np.arange(self.num_treatment):
-            treatment[f"treatment_{i}"] = self._normalize(self._sampling(self.S_x_lam, self.S_x_p), -(i+1))
+            df[f"treatment_{i}"] = self._normalize(self._sampling(self.S_x_lam, self.S_x_p), -(i+1))
+            
+    def _norm(self, array: np.ndarray) -> np.ndarray:
+        """
+        Normalizes array to sum 1000. 
+        
+        Parameters
+        ----------
+        array: np.ndarray
+            Array to normalize. 
+        
+        Returns
+        -------
+        array : np.ndarray
+            Array with a total of 1000.
+            
+        """
+        array = array / array.sum()
+        array = array * 1000
+        return array
+        
     
-    def sample(self, seed: int = 10) -> pd.DataFrame:
+    def _log_fold_change(self, df: pd.DataFrame):
+        """
+        Calculates log fold between treatment and control libraries. 
+        
+        Parameters
+        ----------
+        df: pd.DataFrame
+            DataFrame to add log fold change data to. 
+            
+        """
+        norm_controls = [self._norm(df[f"control_{i}"].values) for i in np.arange(self.num_control)]
+        norm_treatments = [self._norm(df[f"treatment_{i}"].values) for i in np.arange(self.num_treatment)]
+        
+        control = sum(norm_controls)/len(norm_controls)
+        treatment = sum(norm_treatments)/len(norm_treatments)
+        
+        df["lfc"] = np.log2(treatment/control)
+        
+    def sample(self) -> pd.DataFrame:
         """
         Generates DataFrame with observations for the simulation. 
         
@@ -458,8 +506,6 @@ class Simulator:
             sgRNA, gene, lambda, lam scalar, scaled lambda, (p, p scalar, scaled p),  
             modification, and each control and treatment library as columns
         """
-        
-        np.random.seed(seed)
         
         if self.type_dist == "poisson":
             result = pd.DataFrame({
@@ -486,5 +532,6 @@ class Simulator:
 
         self._setting_control_libraries(result)
         self._setting_treatment_libraries(result)
+        self._log_fold_change(result)
         
         return result 
