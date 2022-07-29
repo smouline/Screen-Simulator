@@ -490,7 +490,8 @@ class Simulator:
         df["control_mean"] = control
         df["treatment_mean"] = treatment
         
-        df["lfc"] = np.log2(treatment/control)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df["lfc"] = np.log2(treatment/control)
         
     def sample(self) -> pd.DataFrame:
         """
