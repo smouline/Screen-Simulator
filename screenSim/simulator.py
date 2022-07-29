@@ -26,7 +26,8 @@ class Simulator:
         p_e_max: float = -0.5,
         p_d_min: float = 0.5,
         p_d_max: float = 2.0,
-        type_dist: str = "negative binomial"):
+        type_dist: str = "negative binomial",
+        seed: int = 10):
         
         """
         Constructor for initializing Simulator object.
@@ -77,8 +78,13 @@ class Simulator:
             The upper bound for the p depleted scalars.
         type_dist : str
             Either "poisson" or "negative binomial" distribution. 
+        seed : int
+            Simulators are repeatable for the same `seed`.
         
         """ 
+        
+        np.random.seed(seed)
+        
         self.num_genes = int(num_genes)
         self.num_sgRNAs_per_gene = int(num_sgRNAs_per_gene)
         self.num_control = int(num_control)
@@ -484,7 +490,7 @@ class Simulator:
         
         df["lfc"] = np.log2(treatment/control)
         
-    def sample(self, seed: int = 10) -> pd.DataFrame:
+    def sample(self) -> pd.DataFrame:
         """
         Generates DataFrame with observations for the simulation. 
         
@@ -500,8 +506,6 @@ class Simulator:
             sgRNA, gene, lambda, lam scalar, scaled lambda, (p, p scalar, scaled p),  
             modification, and each control and treatment library as columns
         """
-        
-        np.random.seed(seed)
         
         if self.type_dist == "poisson":
             result = pd.DataFrame({
