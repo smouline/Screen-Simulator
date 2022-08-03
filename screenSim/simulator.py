@@ -92,6 +92,8 @@ class Simulator:
         self._init_n()
         self._init_p()
         self._init_S()
+        self._init_viability()
+        self._init_noise()
         self._mult_S_n()
         self._init_modification()
         
@@ -260,12 +262,22 @@ class Simulator:
         
         self.S = S 
         
+    def _init_viability(self):
+        """
+        """
+        self.v = np.random.beta(a = 5, b = 1, size = self.num_sgRNAs)
+        
+    def _init_noise(self):
+        """
+        """
+        self.noise = np.random.beta(a = 5, b = 1, size = self.num_sgRNAs)
+        
     def _mult_S_n(self):
         """
         Scales n for treatment libraries by performing an element-wise product of `self.S` and `self.n`.
             
         """
-        self.S_n = np.multiply(self.S, self.n) 
+        self.S_n = self.S * self.n * self.v * self.noise
      
     def _init_modification(self):
         """
@@ -419,7 +431,9 @@ class Simulator:
                 "sgRNA": self.sgRNA, 
                 "gene": self.gene, 
                 "n": self.n,
-                "n_scalar": self.S, 
+                "n_scalar": self.S,
+                "viability": self.v,
+                "noise": self.noise,
                 "scaled_n": self.S_n,
                 "modification": self.modification
             })
