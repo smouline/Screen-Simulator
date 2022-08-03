@@ -14,20 +14,15 @@ class Simulator:
         fraction_NTC: float = 0.2,
         min_total: int = 1e6,
         max_total: int = 1e8,
-        lam_min: float = 1.2,
-        lam_max: float = 1.6,
-        p_min: float = 2.3e-3,
-        p_max: float = 2.7e-3,
-        lam_e_min: float = 0.5,
-        lam_e_max: float = 2.0,
-        lam_d_min: float = -2.0,
-        lam_d_max: float = -0.5,
-        p_e_min: float = -2.0,
-        p_e_max: float = -0.5,
-        p_d_min: float = 0.5,
-        p_d_max: float = 2.0,
+        n_prior: float = 1.4,
+        p_prior: float = 2.5e-3,
+        num_bins: int = 50,
+        e_scalar_min: float = 0.5,
+        e_scalar_max: float = 2.0,
+        d_scalar_min: float = -2.0,
+        d_scalar_max: float = -0.5,
         type_dist: str = "negative binomial",
-        seed: int = 10):
+        seed: int = 42):
         
         """
         Constructor for initializing Simulator object.
@@ -52,37 +47,26 @@ class Simulator:
             The lower bound of the total number of counts for one library. 
         max_total : int
             The upper bound of the total number of counts for one library.
-        lam_min : float
-            The lower bound for lambda values.
-        lam_max : float
-            The upper bound for lambda values.
-        p_min : float
-            The lower bound for probability values.
-        p_max : float
-            The upper bound for probability values.
-        lam_e_min : float
-            The lower bound for the lambda enriched scalars. 
-        lam_e_max : float
-            The upper bound for the lambda enriched scalars.
-        lam_d_min : float
-            The lower bound for the lambda depleted scalars. 
-        lam_d_max : float
-            The upper bound for the lambda depleted scalars.
-        p_e_min : float
-            The lower bound for the p enriched scalars. 
-        p_e_max : float
-            The upper bound for the p enriched scalars.
-        p_d_min : float
-            The lower bound for the p depleted scalars. 
-        p_d_max : float
-            The upper bound for the p depleted scalars.
+        n_prior : float
+            The n param for the overall negative binomial.
+        p_prior : float
+            The p param for the overall negative binomial. 
+        num_bins : int
+            The number of bins to split the overall negative binomial distribution into (see _init_n() for more info). 
+        e_scalar_min : float
+            The lower bound for the n enriched scalars. 
+        e_scalar_max : float
+            The upper bound for the n enriched scalars.
+        d_scalar_min : float
+            The lower bound for the n depleted scalars. 
+        d_scalar_max : float
+            The upper bound for the n depleted scalars.
         type_dist : str
-            Either "poisson" or "negative binomial" distribution. 
+            Either "poisson" or "negative binomial" distribution. Note: lambda in poisson will be referred to as n here. 
         seed : int
             Simulators are repeatable for the same `seed`.
         
         """ 
-        
         np.random.seed(seed)
         
         self.num_genes = int(num_genes)
@@ -90,15 +74,14 @@ class Simulator:
         self.num_control = int(num_control)
         self.num_treatment = int(num_treatment)
         self.type_dist = type_dist
-
+        self.n_prior = n_prior
+        self.p_prior = p_prior
+        self.num_bins = int(num_bins)
+        
         self._init_fractions(fraction_enriched, fraction_depleted, fraction_NTC)
         self._init_totals_bounds(int(min_total), int(max_total))
-        self._init_lam_bounds(lam_min, lam_max)
-        self._init_p_bounds(p_min, p_max)
-        self._init_e_lam(lam_e_min, lam_e_max)
-        self._init_d_lam(lam_d_min, lam_d_max)
-        self._init_e_p(p_e_min, p_e_max)
-        self._init_d_p(p_d_min, p_d_max)
+        self._init_e_bounds(e_scalar_min, e_scalar_max)
+        self._init_d_bounds(d_scalar_min, d_scalar_max)
         
         self._num_sgRNAs()
         self._init_count_totals()
@@ -106,12 +89,10 @@ class Simulator:
         self._split_sgRNAs()
         self._init_sgRNA()
         self._init_gene()
-        self._init_lambda()
+        self._init_n()
         self._init_p()
-        self._init_S_lam()
-        self._init_S_p()
-        self._mult_S_lam()
-        self._mult_S_p()
+        self._init_S()
+        self._mult_S_n()
         self._init_modification()
         
     def _init_fractions(self, e: float, d: float, ntc: float):
@@ -150,39 +131,7 @@ class Simulator:
         else:
             raise Exception("Lower/upper bounds must be positive and min_total should be less than max_total.")
             
-    def _init_lam_bounds(self, lower: float, upper: float):
-        """
-        Initializes lambda bounds.
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
-            self.lam_min = lower
-            self.lam_max = upper
-        else:
-            raise Exception("Lower/upper bounds must be positive and lam_min should be less than lam_max.")
-    
-    def _init_p_bounds(self, lower: float, upper: float):
-        """
-        Initializes probability bounds.
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if ((lower < upper) & (lower > 0) & (upper > 0)):
-            self.p_min = lower
-            self.p_max = upper
-        else:
-            raise Exception("Lower/upper bounds must be positive and p_min should be less than p_max.")
-            
-    def _init_e_lam(self, lower: float, upper: float):
+    def _init_e_bounds(self, lower: float, upper: float):
         """
         Initializes the enriched scalar bounds for lambda.
         
@@ -193,12 +142,12 @@ class Simulator:
         
         """
         if (lower < upper):
-            self.lam_e_min = lower
-            self.lam_e_max = upper
+            self.e_scalar_min = lower
+            self.e_scalar_max = upper
         else:
-            raise Exception("lam_e_min should be less than lam_e_max.")
+            raise Exception("e_scalar_min should be less than e_scalar_max.")
      
-    def _init_d_lam(self, lower: float, upper: float):
+    def _init_d_bounds(self, lower: float, upper: float):
         """
         Initializes the depleted scalar bounds for lambda.
         
@@ -209,42 +158,10 @@ class Simulator:
         
         """
         if (lower < upper):
-            self.lam_d_min = lower
-            self.lam_d_max = upper
+            self.d_scalar_min = lower
+            self.d_scalar_max = upper
         else:
-            raise Exception("lam_d_min should be less than lam_d_max.")
-            
-    def _init_e_p(self, lower: float, upper: float):
-        """
-        Initializes the enriched scalar bounds for p.
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if (lower < upper):
-            self.p_e_min = lower
-            self.p_e_max = upper
-        else:
-            raise Exception("p_e_min should be less than p_e_max.")
-            
-    def _init_d_p(self, lower: float, upper: float):
-        """
-        Initializes the depleted scalar bounds for p.
-        
-        Raises
-        ------
-        Exception
-            If lower/upper bounds <= 0 and/or lower > upper.
-        
-        """
-        if (lower < upper):
-            self.p_d_min = lower
-            self.p_d_max = upper
-        else:
-            raise Exception("p_d_min should be less than p_d_max.")
+            raise Exception("d_scalar_min should be less than d_scalar_max.")
    
     def _num_sgRNAs(self):
         """
@@ -265,9 +182,9 @@ class Simulator:
         Calculates number of enriched, depleted, and ntc genes based on fractions. 
         
         """
-        self.num_g_e = round(self.num_genes * self.fraction_depleted)
+        self.num_g_e = round(self.num_genes * self.fraction_enriched)
         self.num_g_d = round(self.num_genes * self.fraction_depleted)
-        self.num_g_ntc = round(self.num_genes * self.fraction_depleted)
+        self.num_g_ntc = round(self.num_genes * self.fraction_NTC)
         
     def _split_sgRNAs(self):
         """
@@ -299,72 +216,56 @@ class Simulator:
         
         self.gene = gene_label
     
-    def _init_lambda(self):
+    def _init_n(self):
         """
-        Initializes a lambda for each sgRNA.
+        Initializes an n for each sgRNA. 
+        Splits the overall negative binomial into bins and assigns n based on those bins. 
+        This way, sampling is very similar to the overall negative binomial and not overdispersed.
         
         """
-        self.lam = np.random.uniform(self.lam_min, self.lam_max, size = self.num_sgRNAs)
+        n = np.zeros(shape = self.num_sgRNAs)
+        
+        overall = np.random.negative_binomial(n = self.n_prior, p = self.p_prior, size = self.num_sgRNAs)
+        
+        hist = np.histogram(overall, bins = self.num_bins)
+        
+        bins = hist[1]
+            
+        for i in np.arange(self.num_bins):
+            bin_left, bin_right = bins[i], bins[i+1]
+            mask = (overall >= bin_left) & (overall <= bin_right)
+            n[mask] = (bin_left + bin_right)/2
+    
+        self.n = n
 
     def _init_p(self):
         """
-        Initializes a probability for each sgRNA if the distribution is negative binomial.
+        Initializes a probability for each sgRNA.
         
         """
-        if self.type_dist == "negative binomial":
-            self.p = np.random.uniform(self.p_min, self.p_max, size = self.num_sgRNAs)
-        else:
-            self.p = 0
+        self.p = np.full(shape = self.num_sgRNAs, fill_value = 0.9)
     
-    def _init_S_lam(self):
+    def _init_S(self):
         """
-        Initializes gene-specific lambda scalars for each gene. 
+        Initializes gene-specific n scalars for each gene depending on the gene classification. 
         
         """
         S = np.ones(self.num_sgRNAs)
         
-        gene_e_scalars = np.random.uniform(self.lam_e_min, self.lam_e_max, size = self.num_g_e)
-        gene_e_scalars = np.exp2(gene_e_scalars)
-        gene_d_scalars = np.random.uniform(self.lam_d_min, self.lam_d_max, size = self.num_g_d)
-        gene_d_scalars = np.exp2(gene_d_scalars)
+        gene_e_scalars = np.exp2(np.random.uniform(self.e_scalar_min, self.e_scalar_max, size = self.num_g_e))
+        gene_d_scalars = np.exp2(np.random.uniform(self.d_scalar_min, self.d_scalar_max, size = self.num_g_d))
         
         S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
         S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
         
-        self.S_lam = S 
+        self.S = S 
         
-    def _init_S_p(self):
+    def _mult_S_n(self):
         """
-        Initializes gene-specific p scalars for each gene if the distribution is negative binomial. 
-        
-        """
-        S = np.ones(self.num_sgRNAs)
-        
-        if self.type_dist == "negative binomial":
-
-            gene_e_scalars = np.random.uniform(self.p_e_min, self.p_e_max, size = self.num_g_e)
-            gene_e_scalars = np.exp2(gene_e_scalars)
-            gene_d_scalars = np.random.uniform(self.p_d_min, self.p_d_max, size = self.num_g_d)
-            gene_d_scalars = np.exp2(gene_d_scalars)
-            
-            S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
-            S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
-
-        self.S_p = S 
-        
-    def _mult_S_lam(self):
-        """
-        Scales the lambdas for treatment libraries by performing an element-wise product of `S_lam` and `lam`.
+        Scales n for treatment libraries by performing an element-wise product of `self.S` and `self.n`.
             
         """
-        self.S_x_lam = np.multiply(self.S_lam, self.lam)
-    
-    def _mult_S_p(self):
-        """
-        Scales p for treatment libraries by performing an element-wise product of `S_p` and `p`.
-            
-        """
-        self.S_x_p = np.multiply(self.S_p, self.p) 
+        self.S_n = np.multiply(self.S, self.n) 
      
     def _init_modification(self):
         """
@@ -380,14 +281,14 @@ class Simulator:
         
         self.modification = mod
         
-    def _sampling(self, lambdas: np.ndarray, p_array: np.ndarray) -> np.ndarray:
+    def _sampling(self, n_array: np.ndarray, p_array: np.ndarray) -> np.ndarray:
         """
-        Generates count values for each lambda/p value given a distribution.
+        Generates count values for one library using each sgRNA's n/(p) value(s). 
         
         Parameters
         ----------
-        lambdas: np.ndarray
-            To use as lam in poisson or n in negative binomial.
+        n_array: np.ndarray
+            To use as n in negative binomial or lam in in poisson.
         p_array: np.ndarray 
             Probabilities to use as p in negative binomial.
             
@@ -398,19 +299,18 @@ class Simulator:
             
         Returns
         -------
-        a : np.ndarray
+        counts : np.ndarray
             Count values for a given library. 
         
         """
-        
         if self.type_dist == "poisson":
-            a = np.random.poisson(lambdas)
+            counts = np.random.poisson(n_array)
         elif self.type_dist == "negative binomial":
-            a = np.random.negative_binomial(lambdas, p_array)
+            counts = np.random.negative_binomial(n_array, p_array)
         else:
             raise Exception("Make sure to choose a distribution from those available.")
             
-        return a
+        return counts
         
     def _normalize(self, norm: np.ndarray, index: int) -> np.ndarray:
         """
@@ -438,19 +338,29 @@ class Simulator:
     
     def _setting_control_libraries(self, df: pd.DataFrame):
         """
-        Generates values for control libraries with _sum_array() and appends each library as a column to passed pd.DataFrame.
+        Generates values for control libraries with _sum_array() and appends each library as a column to `df`.
+        
+        Parameters
+        ----------
+        df: pd.DataFrame
+            DataFrame to add control libraries to as columns. 
             
         """
         for i in np.arange(self.num_control):
-            df[f"control_{i}"] = self._normalize(self._sampling(self.lam, self.p), i)
+            df[f"control_{i}"] = self._normalize(self._sampling(self.n, self.p), i)
 
     def _setting_treatment_libraries(self, df: pd.DataFrame):
         """
-        Generates values for treatment libraries with _sum_array() and appends each library as a column to passed pd.DataFrame.
+        Generates values for treatment libraries with _sum_array() and appends each library as a column to `df`.
+        
+        Parameters
+        ----------
+        df: pd.DataFrame
+            DataFrame to add treatment libraries to as columns. 
             
         """
         for i in np.arange(self.num_treatment):
-            df[f"treatment_{i}"] = self._normalize(self._sampling(self.S_x_lam, self.S_x_p), -(i+1))
+            df[f"treatment_{i}"] = self._normalize(self._sampling(self.S_n, self.p), -(i+1))
             
     def _norm(self, array: np.ndarray) -> np.ndarray:
         """
@@ -469,67 +379,48 @@ class Simulator:
         """
         array = array / array.sum()
         return array
-        
-    
+         
     def _log_fold_change(self, df: pd.DataFrame):
         """
-        Calculates log fold between treatment and control libraries. 
+        Calculates log2 fold change between treatment and control libraries. 
         
         Parameters
         ----------
         df: pd.DataFrame
-            DataFrame to add log fold change data to. 
+            DataFrame to add log fold change data to in a column. 
             
         """
         norm_controls = [self._norm(df[f"control_{i}"].values) for i in np.arange(self.num_control)]
         norm_treatments = [self._norm(df[f"treatment_{i}"].values) for i in np.arange(self.num_treatment)]
         
-        control = sum(norm_controls)/len(norm_controls)
-        treatment = sum(norm_treatments)/len(norm_treatments)
+        c_mean = sum(norm_controls)/len(norm_controls)
+        t_mean = sum(norm_treatments)/len(norm_treatments)
         
-        df["control_mean"] = control
-        df["treatment_mean"] = treatment
+        df["control_mean"] = c_mean
+        df["treatment_mean"] = t_mean
         
-        with np.errstate(divide='ignore', invalid='ignore'):
-            df["lfc"] = np.log2(treatment/control)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            log2fc = np.ma.log2(t_mean/c_mean)
+            log2fc[log2fc.mask] = np.nan
+            df["lfc"] = log2fc.data
         
     def sample(self) -> pd.DataFrame:
         """
         Generates DataFrame with observations for the simulation. 
         
-        Parameters
-        ----------
-        seed: int
-            Observations are repeatable each time sample() is called on 
-            the same instance with the same `seed`. 
-        
         Returns
         -------
         result : pd.DataFrame 
-            sgRNA, gene, lambda, lam scalar, scaled lambda, (p, p scalar, scaled p),  
-            modification, and each control and treatment library as columns
-        """
-        
-        if self.type_dist == "poisson":
-            result = pd.DataFrame({
-            "sgRNA": self.sgRNA, 
-            "gene": self.gene, 
-            "lambda": self.lam,
-            "lam scalar": self.S_lam, 
-            "scaled lambda": self.S_x_lam,
-            "modification": self.modification
-        })
+            columns: sgRNA, gene, n, n_scalar, scaled_n, modification, 
+            each control and treatment library as a column, and the log fold change (lfc)
             
-        elif self.type_dist == "negative binomial":
-            result = pd.DataFrame({
+        """  
+        result = pd.DataFrame({
                 "sgRNA": self.sgRNA, 
                 "gene": self.gene, 
-                "lambda": self.lam,
-                "lam scalar": self.S_lam, 
-                "scaled lambda": self.S_x_lam,
-                "p": self.p,
-                "p scalar": self.S_p,
-                "scaled p": self.S_x_p,
+                "n": self.n,
+                "n_scalar": self.S, 
+                "scaled_n": self.S_n,
                 "modification": self.modification
             })
 
@@ -537,4 +428,79 @@ class Simulator:
         self._setting_treatment_libraries(result)
         self._log_fold_change(result)
         
-        return result 
+        return result
+    
+    def ma_plot(self): 
+        """
+        Plots an MA plot with the log2 fold change and the mean of the control libraries for each gene modification. 
+        
+        """
+        sim = self.sample()
+        
+        plt.figure(figsize=(5,5), dpi=100)
+        
+        for m in sim.modification.unique():
+            plt.scatter(
+                sim[sim.modification == m].control_mean,
+                sim[sim.modification == m].lfc,
+                label=m,
+                alpha=0.05)
+        
+        plt.axhline(0, linestyle="dashed", color="black")
+        plt.legend()
+        plt.xscale("log")
+        plt.xlabel("Control Mean")
+        plt.ylabel("Log2 Fold Change")
+        plt.show()
+        
+    def correlation_plot(self):
+        """
+        Plots a correlation scatter plot with the log of control mean on the x-axis 
+        and the log of treatment mean on the y-axis for each gene modification. 
+        
+        """
+        sim = self.sample()
+        
+        plt.figure(figsize=(5,5), dpi=100)
+        
+        for m in sim.modification.unique():
+            plt.scatter(
+                sim[sim.modification == m].control_mean,
+                sim[sim.modification == m].treatment_mean,
+                label=m,
+                alpha=0.05)
+        
+        plt.plot(
+            np.logspace(-7, -2),
+            np.logspace(-7, -2),
+            color="black",
+            linestyle="dashed")
+        
+        plt.legend()
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.xlabel("Control Mean")
+        plt.ylabel("Treatment Mean")
+        plt.show()
+        
+    def lfc_plot(self):
+        """
+        Plots the fraction the density of sgRNAs against the log2 fold change for each gene modification.   
+        
+        """
+        sim = self.sample()
+        
+        plt.figure(figsize=(5,3), dpi=150)
+
+        for m in sim.modification.unique():
+            plt.hist(
+                sim[sim.modification == m].lfc.values, 
+                bins=200, 
+                density=True, 
+                alpha=0.5,
+                label=m)
+
+        plt.ylabel("Fraction of sgRNAs")
+        plt.xlabel("Log2 Fold Change")
+        plt.legend()
+        plt.show()
