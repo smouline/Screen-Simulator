@@ -93,7 +93,7 @@ class Simulator:
         self._init_p()
         self._init_S()
         self._init_viability()
-        self._init_noise()
+        self._add_S_noise()
         self._mult_S_n()
         self._init_modification()
         
@@ -252,15 +252,16 @@ class Simulator:
         Initializes gene-specific n scalars for each gene depending on the gene classification. 
         
         """
-        S = np.ones(self.num_sgRNAs)
+        S = np.zeros(self.num_sgRNAs)
         
-        gene_e_scalars = np.exp2(np.random.uniform(self.e_scalar_min, self.e_scalar_max, size = self.num_g_e))
-        gene_d_scalars = np.exp2(np.random.uniform(self.d_scalar_min, self.d_scalar_max, size = self.num_g_d))
+        gene_e_scalars = np.random.uniform(self.e_scalar_min, self.e_scalar_max, size = self.num_g_e)
+        gene_d_scalars = np.random.uniform(self.d_scalar_min, self.d_scalar_max, size = self.num_g_d)
         
         S[:self.num_e] = np.repeat(gene_e_scalars, self.num_sgRNAs_per_gene)
         S[self.num_e: self.num_e + self.num_d] = np.repeat(gene_d_scalars, self.num_sgRNAs_per_gene)
         
-        self.S = S 
+        self.S = np.exp2(S)
+        self.S_pre_noise = S
         
     def _init_viability(self):
         """
@@ -268,19 +269,21 @@ class Simulator:
         v = np.random.beta(a = 5, b = 1, size = self.num_genes)
         self.v = np.repeat(v, self.num_sgRNAs_per_gene)
         
-    def _init_noise(self):
+    def _add_S_noise(self):
         """
         """
         noise_gene = np.array([np.random.beta(5, 1, size = self.num_sgRNAs_per_gene) for i in np.arange(self.num_genes)])
         noise_sg = np.reshape(noise_gene, newshape = self.num_sgRNAs)
         self.noise = noise_sg
         
+        self.S_post_noise = self.S * self.noise  
+        
     def _mult_S_n(self):
         """
         Scales n for treatment libraries by performing an element-wise product of `self.S` and `self.n`.
             
         """
-        self.S_n = self.S * self.n * self.v * self.noise
+        self.S_n = self.S_post_noise * self.n * self.v
      
     def _init_modification(self):
         """
