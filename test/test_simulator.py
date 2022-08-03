@@ -22,15 +22,22 @@ def test_totals_array(sim):
     
 def test_totals_array_len(sim):
     assert len(sim.totals_array) == sim.num_control + sim.num_treatment
-    
-def test_lambda(sim): 
-    for i in sim.lam:
-        assert (i > sim.lam_min) & (i < sim.lam_max)
         
+def test_number_non_targeting(sim):
+    df = sim.sample()
+    assert df.gene.str.contains("non-targeting").sum() == sim.num_ntc == round(sim.num_genes * sim.fraction_NTC) * sim.num_sgRNAs_per_gene
+    
+def test_number_enriched(sim):
+    df = sim.sample()
+    assert (df.modification == "enriched").sum() == sim.num_e == round(sim.num_genes * sim.fraction_enriched) * sim.num_sgRNAs_per_gene
+    
+def test_number_depleted(sim):
+    df = sim.sample()
+    assert (df.modification == "depleted").sum() == sim.num_d == round(sim.num_genes * sim.fraction_depleted) * sim.num_sgRNAs_per_gene
+    
 def test_number_ntcs(sim):
     df = sim.sample()
-    df_ntc = df[df.gene.str.contains("non-targeting")]
-    assert len(df_ntc) == sim.num_e == round(sim.num_sgRNAs * sim.fraction_depleted)
+    assert (df.modification == "ntc").sum() == sim.num_ntc == round(sim.num_genes * sim.fraction_NTC) * sim.num_sgRNAs_per_gene
 
 def test_control_sums(sim):
     controls = pd.DataFrame()
@@ -45,16 +52,3 @@ def test_treatment_sums(sim):
     total = sim.totals_array
     for i in range(sim.num_treatment):
         assert abs((treatments[treatments.columns[i]].sum() - total[-(i+1)])/total[-(i+1)]) < 0.05
-    
-
-        
-        
-        
-        
-    
-    
-    
-
-    
-    
-    
