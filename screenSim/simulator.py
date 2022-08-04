@@ -265,12 +265,13 @@ class Simulator:
         
     def _add_S_noise(self):
         """
+        
         """
         noise_gene = np.array([np.random.beta(5, 1, size = self.num_sgRNAs_per_gene) for i in np.arange(self.num_genes)])
         noise_sg = np.reshape(noise_gene, newshape = self.num_sgRNAs)
         self.noise = noise_sg
         
-        self.S_post_noise = self.S * self.noise 
+        self.S_post_noise = np.exp2(self.S_pre_noise * self.noise)
     
     def _init_viability(self):
         """ 
