@@ -92,8 +92,8 @@ class Simulator:
         self._init_n()
         self._init_p()
         self._init_S()
-        self._init_viability()
         self._add_S_noise()
+        self._init_viability()
         self._mult_S_n()
         self._init_modification()
         
@@ -263,19 +263,6 @@ class Simulator:
         self.S = np.exp2(S)
         self.S_pre_noise = S
         
-    def _init_viability(self):
-        """
-        """
-        variability_gene = np.random.beta(a = 5, b = 1, size = self.num_genes)
-        variability_gene[self.num_g_e + self.num_g_d: self.num_g_e + self.num_g_d + self.num_g_ntc] = 1
-        variability_sg = np.repeat(variability_gene, self.num_sgRNAs_per_gene)
-        
-        bernoulli = np.random.random(size = self.num_sgRNAs)
-        bernoulli = bernoulli < 0.95
-        variability_sg[bernoulli] = 1
-        
-        self.v = variability_sg
-        
     def _add_S_noise(self):
         """
         """
@@ -283,7 +270,21 @@ class Simulator:
         noise_sg = np.reshape(noise_gene, newshape = self.num_sgRNAs)
         self.noise = noise_sg
         
-        self.S_post_noise = self.S * self.noise  
+        self.S_post_noise = self.S * self.noise 
+    
+    def _init_viability(self):
+        """ 
+        """
+        viability_gene = np.random.beta(a = 5, b = 1, size = self.num_genes)
+        viability_gene[self.num_g_e + self.num_g_d: self.num_g_e + self.num_g_d + self.num_g_ntc] = 1
+        
+        bernoulli = np.random.random(size = self.num_genes)
+        bernoulli = bernoulli < 0.95
+        viability_gene[bernoulli] = 1
+        
+        viability_sg = np.repeat(viability_gene, self.num_sgRNAs_per_gene)
+        
+        self.v = viability_sg
         
     def _mult_S_n(self):
         """
