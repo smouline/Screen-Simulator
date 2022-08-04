@@ -266,8 +266,15 @@ class Simulator:
     def _init_viability(self):
         """
         """
-        v = np.random.beta(a = 5, b = 1, size = self.num_genes)
-        self.v = np.repeat(v, self.num_sgRNAs_per_gene)
+        variability_gene = np.random.beta(a = 5, b = 1, size = self.num_genes)
+        variability_gene[self.num_g_e + self.num_g_d: self.num_g_e + self.num_g_d + self.num_g_ntc] = 1
+        variability_sg = np.repeat(variability_gene, self.num_sgRNAs_per_gene)
+        
+        bernoulli = np.random.random(size = self.num_sgRNAs)
+        bernoulli = bernoulli < 0.95
+        variability_sg[bernoulli] = 1
+        
+        self.v = variability_sg
         
     def _add_S_noise(self):
         """
