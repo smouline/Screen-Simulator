@@ -249,7 +249,7 @@ class Simulator:
     
     def _init_S(self):
         """
-        Initializes gene-specific n scalars for each gene depending on the gene classification. 
+        Initializes gene-specific n scalars based on gene classification. 
         
         """
         S = np.zeros(self.num_sgRNAs)
@@ -265,6 +265,7 @@ class Simulator:
         
     def _add_S_noise(self):
         """
+        Adds noise to noise to scalars with beta distribution at gene level. 
         
         """
         noise_gene = np.array([np.random.beta(5, 1, size = self.num_sgRNAs_per_gene) for i in np.arange(self.num_genes)])
@@ -275,6 +276,8 @@ class Simulator:
     
     def _init_viability(self):
         """ 
+        Initializes viability at gene-level to take into account knockdown toxicity. 
+        
         """
         viability_gene = np.random.beta(a = 5, b = 1, size = self.num_genes)
         viability_gene[self.num_g_e + self.num_g_d: self.num_g_e + self.num_g_d + self.num_g_ntc] = 1
