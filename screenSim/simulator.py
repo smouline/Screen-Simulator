@@ -14,13 +14,13 @@ class Simulator:
         fraction_NTC: float = 0.2,
         min_total: int = 1e6,
         max_total: int = 1e8,
-        n_prior: float = 1.4,
-        p_prior: float = 2.5e-3,
-        num_bins: int = 50,
-        e_scalar_min: float = 0.5,
-        e_scalar_max: float = 2.0,
-        d_scalar_min: float = -2.0,
-        d_scalar_max: float = -0.5,
+        n_prior: float = 8.1e-1,
+        p_prior: float = 7.4e-4,
+        num_bins: int = 1000,
+        e_scalar_min: float = 0.1,
+        e_scalar_max: float = 0.8,
+        d_scalar_min: float = -0.8,
+        d_scalar_max: float = -0.1,
         type_dist: str = "negative binomial",
         seed: int = 42):
         
@@ -282,7 +282,8 @@ class Simulator:
         viability_gene = np.random.beta(a = 5, b = 1, size = self.num_genes)
         viability_gene[self.num_g_e + self.num_g_d: self.num_g_e + self.num_g_d + self.num_g_ntc] = 1
         
-        bernoulli = np.random.random(size = self.num_genes)
+        bernoulli = np.random.random(size = self.num_genes - self.num_g_ntc)
+        bernoulli = np.insert(bernoulli, self.num_g_e + self.num_g_d, np.ones(shape=self.num_g_ntc))
         bernoulli = bernoulli < 0.95
         viability_gene[bernoulli] = 1
         
