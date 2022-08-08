@@ -453,6 +453,7 @@ class Simulator:
                 "n_scalar": self.S,
                 "viability": self.v,
                 "noise": self.noise,
+                "scalar": self.S_n,
                 "scaled_n": self.S_n,
                 "modification": self.modification
             })
