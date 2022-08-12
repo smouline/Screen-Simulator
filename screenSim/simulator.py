@@ -67,6 +67,7 @@ class Simulator:
             Simulators are repeatable for the same `seed`.
         
         """ 
+        self.seed = seed
         np.random.seed(seed)
         
         self.num_genes = int(num_genes)
@@ -296,7 +297,8 @@ class Simulator:
         Scales n for treatment libraries by performing an element-wise product of `self.S` and `self.n`.
             
         """
-        self.S_n = self.S_post_noise * self.n * self.v
+        self.S_post_noise_viability = self.S_post_noise * self.v
+        self.S_n = self.S_post_noise_viability * self.n
      
     def _init_modification(self):
         """
@@ -453,7 +455,7 @@ class Simulator:
                 "n_scalar": self.S,
                 "viability": self.v,
                 "noise": self.noise,
-                "scalar": self.S_n,
+                "scalar": self.S_post_noise_viability,
                 "scaled_n": self.S_n,
                 "modification": self.modification
             })
