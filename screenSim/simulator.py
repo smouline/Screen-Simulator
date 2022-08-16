@@ -3,6 +3,39 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 class Simulator:
+    """
+    Simulator for simulating sequencing count data of CRISPR screens. 
+    
+    Methods
+    -------
+    sample :
+        samples library counts
+    ma_plot :
+        plots MA plot of counts 
+    correlation_plot :
+        plots scatter plot of mean of normalized treatment libraries against mean of normalized control libraries
+    lfc_plot : plots density of sgRNAs against log fold change
+    
+    
+    Examples
+    --------
+    >>> # Initialize Simulator (can choose params)
+    ... sim = Simulator()
+    ...
+    >>> # Sample counts
+    ... sample = sim.sample()
+    ...
+    >>> # MA plot
+    ... sim.ma_plot()
+    ...
+    >>> # Correlation plot
+    ... sim.correlation_plot()
+    ...
+    >>> # Log fold change plot
+    ... sim.lfc_plot()
+    ...
+    """
+    
     def __init__(
         self, 
         num_genes: int = 20000,
