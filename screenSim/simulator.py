@@ -207,7 +207,7 @@ class Simulator:
     
     def _init_gene(self) -> list:
         """
-        Initializes array with gene labels. 
+        Initializes array with gene and ntc labels. 
         
         """
         gene = np.arange(self.num_genes)
@@ -243,7 +243,8 @@ class Simulator:
 
     def _init_p(self):
         """
-        Initializes a probability for each sgRNA.
+        Initializes a probability for each sgRNA. 
+        The probabilites are high so that the sgRNA-level distribution depends on the n value, and is not overdisperesed. 
         
         """
         self.p = np.full(shape = self.num_sgRNAs, fill_value = 0.9)
@@ -294,7 +295,7 @@ class Simulator:
         
     def _mult_S_n(self):
         """
-        Scales n for treatment libraries by performing an element-wise product of `self.S` and `self.n`.
+        Scales n for treatment libraries by performing an element-wise product of `self.S_post_noise_viability` and `self.n`.
             
         """
         self.S_post_noise_viability = self.S_post_noise * self.v
@@ -316,7 +317,7 @@ class Simulator:
         
     def _sampling(self, n_array: np.ndarray, p_array: np.ndarray) -> np.ndarray:
         """
-        Generates count values for one library using each sgRNA's n/(p) value(s). 
+        Generates count values for one library using each sgRNA's n/p value(s). 
         
         Parameters
         ----------
@@ -345,7 +346,7 @@ class Simulator:
             
         return counts
         
-    def _normalize(self, norm: np.ndarray, index: int) -> np.ndarray:
+    def _normalize(self, array: np.ndarray, index: int) -> np.ndarray:
         """
         Adjusts array to have specified total.
         
@@ -362,16 +363,16 @@ class Simulator:
             Array with a total of an element from `totals_array`    
         
         """
-        norm = norm.astype(float)
-        norm /= (norm.sum())
-        norm *= self.totals_array[index]
-        norm = np.round(norm)
+        array = array.astype(float)
+        array /= (array.sum())
+        array *= self.totals_array[index]
+        norm = np.round(array)
       
         return norm
     
     def _setting_control_libraries(self, df: pd.DataFrame):
         """
-        Generates values for control libraries with _sum_array() and appends each library as a column to `df`.
+        Generates counts for each control library.
         
         Parameters
         ----------
@@ -384,7 +385,7 @@ class Simulator:
 
     def _setting_treatment_libraries(self, df: pd.DataFrame):
         """
-        Generates values for treatment libraries with _sum_array() and appends each library as a column to `df`.
+        Generates counts for each treatment library.
         
         Parameters
         ----------
@@ -410,17 +411,19 @@ class Simulator:
             Array with a total of 1.
             
         """
-        array = array / array.sum()
-        return array
+        norm = array / array.sum()
+        return norm
          
     def _log_fold_change(self, df: pd.DataFrame):
         """
-        Calculates log2 fold change between treatment and control libraries. 
+        Calculates the control mean, treatment mean, and the log2 fold changes between the two.
+        Control mean is the mean (per sgRNA) of the normalized counts across control libraries. 
+        Treatment mean is the mean (per sgRNA) of the normalized counts across treatment libraries. 
         
         Parameters
         ----------
         df: pd.DataFrame
-            DataFrame to add log fold change data to in a column. 
+            DataFrame to add control mean, treatment mean, log fold change data to as columns. 
             
         """
         norm_controls = [self._norm(df[f"control_{i}"].values) for i in np.arange(self.num_control)]
@@ -439,13 +442,13 @@ class Simulator:
         
     def sample(self) -> pd.DataFrame:
         """
-        Generates DataFrame with observations for the simulation. 
+        Generates DataFrame with parameters and counts for the Simulator. 
         
         Returns
         -------
         result : pd.DataFrame 
-            columns: sgRNA, gene, n, n_scalar, scaled_n, modification, 
-            each control and treatment library as a column, and the log fold change (lfc)
+            columns: sgRNA, gene, n, n_scalar, noise, viability, scaled_n, modification, 
+            control and treatment libraries each as a column, control_mean, treatment_mean, and lfc
             
         """  
         result = pd.DataFrame({
@@ -468,12 +471,12 @@ class Simulator:
     
     def ma_plot(self): 
         """
-        Plots an MA plot with the log2 fold change and the mean of the control libraries for each gene modification. 
+        Plots an MA plot with the log2 fold change and the mean of the control libraries. 
         
         """
         sim = self.sample()
         
-        plt.figure(figsize=(5,5), dpi=100)
+        plt.figure(figsize=(5,5), dpi=200)
         
         for m in sim.modification.unique():
             plt.scatter(
@@ -487,17 +490,17 @@ class Simulator:
         plt.xscale("log")
         plt.xlabel("Control Mean")
         plt.ylabel("Log2 Fold Change")
+        plt.title("MA Plot")
         plt.show()
         
     def correlation_plot(self):
         """
-        Plots a correlation scatter plot with the log of control mean on the x-axis 
-        and the log of treatment mean on the y-axis for each gene modification. 
+        Plots a scatter plot of log(treatment mean) against log(control mean)
         
         """
         sim = self.sample()
         
-        plt.figure(figsize=(5,5), dpi=100)
+        plt.figure(figsize=(5,5), dpi=200)
         
         for m in sim.modification.unique():
             plt.scatter(
@@ -517,16 +520,17 @@ class Simulator:
         plt.yscale("log")
         plt.xlabel("Control Mean")
         plt.ylabel("Treatment Mean")
+        plt.title("Treatment Mean Versus Control Mean")
         plt.show()
         
     def lfc_plot(self):
         """
-        Plots the fraction the density of sgRNAs against the log2 fold change for each gene modification.   
+        Plots the fraction the density of sgRNAs against the log2 fold change.   
         
         """
         sim = self.sample()
         
-        plt.figure(figsize=(5,3), dpi=150)
+        plt.figure(figsize=(5,5), dpi=150)
 
         for m in sim.modification.unique():
             plt.hist(
@@ -539,4 +543,5 @@ class Simulator:
         plt.ylabel("Fraction of sgRNAs")
         plt.xlabel("Log2 Fold Change")
         plt.legend()
+        plt.title("Log Fold Changes")
         plt.show()
